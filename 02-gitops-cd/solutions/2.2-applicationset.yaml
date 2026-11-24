@@ -1,0 +1,50 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: guestbook-envs
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - list:
+        elements:
+          - env: dev
+            replicas: "1"
+            autoSync: true
+          - env: staging
+            replicas: "2"
+            autoSync: true
+          - env: prod
+            replicas: "3"
+            autoSync: false
+  template:
+    metadata:
+      name: 'guestbook-{{.env}}'
+      labels:
+        env: '{{.env}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/argoproj/argocd-example-apps
+        targetRevision: HEAD
+        path: helm-guestbook
+        helm:
+          parameters:
+            - name: replicaCount
+              value: '{{.replicas}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: 'gb-{{.env}}'
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true
+  # Bedingte syncPolicy: templatePatch erlaubt Logik, die im normalen Template nicht geht
+  templatePatch: |
+    {{- if .autoSync }}
+    spec:
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+    {{- end }}

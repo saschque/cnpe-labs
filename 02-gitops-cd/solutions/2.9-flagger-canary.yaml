@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: canary-demo
+  labels:
+    istio-injection: enabled
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: podinfo
+  namespace: canary-demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: podinfo
+  template:
+    metadata:
+      labels:
+        app: podinfo
+    spec:
+      containers:
+        - name: podinfo
+          image: ghcr.io/stefanprodan/podinfo:6.7.0
+          ports:
+            - name: http
+              containerPort: 9898
+---
+apiVersion: flagger.app/v1beta1
+kind: Canary
+metadata:
+  name: podinfo
+  namespace: canary-demo
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: podinfo
+  service:                  # Flagger erzeugt podinfo, podinfo-primary, podinfo-canary + VirtualService
+    port: 9898
+    targetPort: 9898
+  analysis:
+    interval: 30s
+    threshold: 5            # nach 5 fehlgeschlagenen Checks → Rollback
+    maxWeight: 50
+    stepWeight: 10
+    metrics:
+      - name: request-success-rate
+        thresholdRange:
+          min: 99
+        interval: 1m
+      - name: request-duration
+        thresholdRange:
+          max: 500          # Millisekunden
+        interval: 1m
+    webhooks:
+      - name: load-test     # optional: erzeugt Traffic, damit Metriken entstehen
+        url: http://flagger-loadtester.test/
+        timeout: 5s
+        metadata:
+          cmd: "hey -z 1m -q 10 -c 2 http://podinfo-canary.canary-demo:9898/"
+# Rollout auslösen:
+#   kubectl -n canary-demo set image deploy/podinfo podinfo=ghcr.io/stefanprodan/podinfo:6.7.1
+#   kubectl -n canary-demo get canary -w
+#   kubectl -n canary-demo describe canary podinfo     # Events: "Advance podinfo canary weight 10" …
+# Load-Tester (optional): helm upgrade -i flagger-loadtester flagger/loadtester -n test --create-namespace
+#
+# Blue/Green statt Canary: stepWeight/maxWeight entfernen und stattdessen
+#   analysis:
+#     iterations: 10       # 10 × interval testen, dann kompletter Switch
+# A/B-Testing: zusätzlich analysis.match mit Header-Regeln (z. B. x-canary: insider).

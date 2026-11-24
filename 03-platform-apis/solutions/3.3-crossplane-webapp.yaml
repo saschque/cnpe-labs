@@ -1,0 +1,186 @@
+# Lösung 3.3 – Crossplane v2
+# 1) Function installieren (aktuelle Version prüfen: https://github.com/crossplane-contrib/function-patch-and-transform/releases)
+apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: function-patch-and-transform
+spec:
+  package: xpkg.crossplane.io/crossplane-contrib/function-patch-and-transform:v0.8.2
+---
+# 2) Crossplane darf Deployments/Services verwalten (Label aggregiert in die Crossplane-ClusterRole)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: crossplane-compose-workloads
+  labels:
+    rbac.crossplane.io/aggregate-to-crossplane: "true"
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["*"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["*"]
+---
+# 3) XRD = das Schema der Plattform-API
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: webapps.platform.example.org
+spec:
+  scope: Namespaced
+  group: platform.example.org
+  names:
+    kind: WebApp
+    plural: webapps
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      additionalPrinterColumns:
+        - name: URL
+          type: string
+          jsonPath: .status.url
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required: ["image"]
+              properties:
+                image:
+                  type: string
+                replicas:
+                  type: integer
+                  default: 1
+                  minimum: 1
+                  maximum: 10
+                port:
+                  type: integer
+                  default: 80
+            status:
+              type: object
+              properties:
+                url:
+                  type: string
+---
+# 4) Composition = das Rezept
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: webapp-basic
+spec:
+  compositeTypeRef:
+    apiVersion: platform.example.org/v1alpha1
+    kind: WebApp
+  mode: Pipeline
+  pipeline:
+    - step: patch-and-transform
+      functionRef:
+        name: function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: deployment
+            base:
+              apiVersion: apps/v1
+              kind: Deployment
+              spec:
+                replicas: 1
+                selector:
+                  matchLabels: {}
+                template:
+                  metadata:
+                    labels: {}
+                  spec:
+                    containers:
+                      - name: app
+                        image: placeholder
+                        ports:
+                          - containerPort: 80
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.image
+                toFieldPath: spec.template.spec.containers[0].image
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.replicas
+                toFieldPath: spec.replicas
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.port
+                toFieldPath: spec.template.spec.containers[0].ports[0].containerPort
+              - type: FromCompositeFieldPath
+                fromFieldPath: metadata.name
+                toFieldPath: spec.selector.matchLabels[app]
+              - type: FromCompositeFieldPath
+                fromFieldPath: metadata.name
+                toFieldPath: spec.template.metadata.labels[app]
+              - type: FromCompositeFieldPath
+                fromFieldPath: metadata.name
+                toFieldPath: metadata.name
+            readinessChecks:
+              - type: MatchCondition
+                matchCondition:
+                  type: Available
+                  status: "True"
+          - name: service
+            base:
+              apiVersion: v1
+              kind: Service
+              spec:
+                selector: {}
+                ports:
+                  - port: 80
+                    targetPort: 80
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: metadata.name
+                toFieldPath: metadata.name
+              - type: FromCompositeFieldPath
+                fromFieldPath: metadata.name
+                toFieldPath: spec.selector[app]
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.port
+                toFieldPath: spec.ports[0].port
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.port
+                toFieldPath: spec.ports[0].targetPort
+              # URL in den Status der XR zurückschreiben
+              - type: CombineToComposite
+                combine:
+                  variables:
+                    - fromFieldPath: metadata.name
+                    - fromFieldPath: metadata.namespace
+                  strategy: string
+                  string:
+                    fmt: "http://%s.%s.svc"
+                toFieldPath: status.url
+            readinessChecks:
+              - type: None
+---
+# 5) Instanz (XR) – so bestellt ein Entwickler
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-a
+---
+apiVersion: platform.example.org/v1alpha1
+kind: WebApp
+metadata:
+  name: shop
+  namespace: team-a
+spec:
+  image: nginx:1.27
+  replicas: 2
+  port: 80
+# Prüfen:
+#   kubectl get xrd ; kubectl get composition ; kubectl get functions
+#   kubectl -n team-a get webapp shop
+#   crossplane beta trace webapp shop -n team-a
+#   kubectl -n team-a get deploy,svc
+#
+# Crossplane v1 Unterschiede:
+#   - XRD apiVersion apiextensions.crossplane.io/v1, cluster-scoped XR (Name meist mit X-Präfix, z. B. XWebApp)
+#   - Entwickler nutzen einen Claim (spec.claimNames) im Namespace
+#   - Kubernetes-Objekte werden über provider-kubernetes (kind: Object) erzeugt, nicht direkt

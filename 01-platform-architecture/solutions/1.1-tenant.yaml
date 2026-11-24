@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-payments
+  labels:
+    team: payments
+    tier: prod
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: payments-quota
+  namespace: team-payments
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    pods: "20"
+    persistentvolumeclaims: "5"
+    services.loadbalancers: "0"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: payments-defaults
+  namespace: team-payments
+spec:
+  limits:
+    - type: Container
+      defaultRequest:      # wird gesetzt, wenn keine Requests angegeben sind
+        cpu: 100m
+        memory: 128Mi
+      default:             # wird gesetzt, wenn keine Limits angegeben sind
+        cpu: 500m
+        memory: 512Mi
+      max:
+        cpu: "2"
+        memory: 2Gi
+# Test:
+#   kubectl -n team-payments run test --image=nginx
+#   kubectl -n team-payments get pod test -o jsonpath='{.spec.containers[0].resources}'

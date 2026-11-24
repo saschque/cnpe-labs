@@ -1,0 +1,164 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: trivy-scan
+  namespace: ci
+spec:
+  params:
+    - name: image
+      type: string
+    - name: severity
+      default: CRITICAL
+  steps:
+    - name: scan
+      image: aquasec/trivy
+      args:
+        - image
+        - --exit-code=1                    # != 0 bei Funden → Task schlägt fehl
+        - --severity=$(params.severity)
+        - --ignore-unfixed
+        - --no-progress
+        - $(params.image)
+---
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: sbom
+  namespace: ci
+spec:
+  params:
+    - name: image
+      type: string
+  workspaces:
+    - name: output
+  steps:
+    - name: syft
+      image: anchore/syft
+      args:
+        - $(params.image)
+        - -o
+        - spdx-json=$(workspaces.output.path)/sbom/sbom.spdx.json
+---
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: kyverno-test
+  namespace: ci
+spec:
+  params:
+    - name: manifests
+      default: guestbook
+  workspaces:
+    - name: source
+  steps:
+    - name: write-policy
+      image: busybox
+      workingDir: $(workspaces.source.path)
+      script: |
+        cat > /workspace/policy.yaml <<'EOF'
+        apiVersion: kyverno.io/v1
+        kind: ClusterPolicy
+        metadata:
+          name: disallow-latest-tag
+        spec:
+          validationFailureAction: Enforce
+          rules:
+            - name: no-latest
+              match:
+                any:
+                  - resources:
+                      kinds: ["Pod"]
+              validate:
+                message: "Der Tag ':latest' ist nicht erlaubt."
+                pattern:
+                  spec:
+                    containers:
+                      - image: "!*:latest"
+        EOF
+    - name: apply
+      image: ghcr.io/kyverno/kyverno-cli
+      workingDir: $(workspaces.source.path)
+      args: ["apply", "/workspace/policy.yaml", "--resource", "$(params.manifests)", "--policy-report"]
+      # kyverno apply liefert Exit-Code 1 bei Verstößen gegen Enforce-Regeln
+---
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: secure-pipeline
+  namespace: ci
+spec:
+  params:
+    - name: repo-url
+    - name: image
+  workspaces:
+    - name: shared
+  tasks:
+    - name: clone
+      taskRef: {name: git-clone-simple}          # aus 2.7
+      params:
+        - {name: repo-url, value: $(params.repo-url)}
+      workspaces:
+        - {name: output, workspace: shared}
+    - name: trivy-scan
+      runAfter: [clone]
+      taskRef: {name: trivy-scan}
+      params:
+        - {name: image, value: $(params.image)}
+    - name: sbom
+      runAfter: [clone]
+      taskRef: {name: sbom}
+      params:
+        - {name: image, value: $(params.image)}
+      workspaces:
+        - {name: output, workspace: shared}
+    - name: kyverno-test
+      runAfter: [clone]
+      taskRef: {name: kyverno-test}
+      workspaces:
+        - {name: source, workspace: shared}
+---
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: secure-pipeline-
+  namespace: ci
+spec:
+  pipelineRef: {name: secure-pipeline}
+  params:
+    - {name: repo-url, value: https://github.com/argoproj/argocd-example-apps}
+    - {name: image, value: "nginx:1.27"}
+  workspaces:
+    - name: shared
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources: {requests: {storage: 1Gi}}
+# Achtung RWO-Workspace: parallele Tasks müssen auf demselben Node laufen
+# (Tekton Affinity Assistant regelt das standardmäßig).
+---
+# Bonus 5.9.5: Signaturprüfung zur Laufzeit
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-signatures
+spec:
+  validationFailureAction: Enforce
+  webhookTimeoutSeconds: 30
+  rules:
+    - name: cosign
+      match:
+        any:
+          - resources:
+              kinds: ["Pod"]
+              namespaces: ["prod"]
+      verifyImages:
+        - imageReferences: ["ghcr.io/my-org/*"]
+          attestors:
+            - entries:
+                - keys:
+                    publicKeys: |-
+                      -----BEGIN PUBLIC KEY-----
+                      <cosign.pub hier einfügen>
+                      -----END PUBLIC KEY-----
+# Signieren: cosign generate-key-pair ; cosign sign --key cosign.key ghcr.io/my-org/app:1.0
+# SBOM als Attestation: cosign attest --key cosign.key --type spdxjson --predicate sbom.spdx.json <image>

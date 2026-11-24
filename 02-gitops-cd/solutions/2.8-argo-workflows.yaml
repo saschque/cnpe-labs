@@ -1,0 +1,79 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: platform-dag
+  namespace: argo
+spec:
+  serviceAccountName: argo-workflow     # vom Helm-Chart (workflow.serviceAccount.create=true)
+  entrypoint: main
+  templates:
+    - name: main
+      dag:
+        tasks:
+          - name: validate
+            template: echo
+            arguments:
+              parameters: [{name: msg, value: "validate"}]
+          - name: build-a
+            depends: validate
+            template: echo
+            arguments:
+              parameters: [{name: msg, value: "build A"}]
+          - name: build-b
+            depends: validate
+            template: echo
+            arguments:
+              parameters: [{name: msg, value: "build B"}]
+          - name: publish
+            depends: "build-a && build-b"
+            template: echo-retry
+            arguments:
+              parameters: [{name: msg, value: "publish"}]
+    - name: echo
+      inputs:
+        parameters:
+          - name: msg
+      container:
+        image: alpine
+        command: [echo]
+        args: ["{{inputs.parameters.msg}}"]
+    - name: echo-retry              # Bonus
+      inputs:
+        parameters:
+          - name: msg
+      retryStrategy:
+        limit: "3"
+        retryPolicy: OnFailure
+        backoff:
+          duration: "5s"
+          factor: "2"
+          maxDuration: "1m"
+      container:
+        image: alpine
+        command: [echo]
+        args: ["{{inputs.parameters.msg}}"]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: CronWorkflow
+metadata:
+  name: nightly-cleanup
+  namespace: argo
+spec:
+  schedules: ["0 2 * * *"]       # ältere Versionen: schedule: "0 2 * * *"
+  timezone: Europe/Berlin
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  workflowSpec:
+    serviceAccountName: argo-workflow
+    entrypoint: cleanup
+    templates:
+      - name: cleanup
+        container:
+          image: alpine
+          command: [sh, -c]
+          args: ["echo cleaning up old resources"]
+# Start:  argo submit -n argo --from workflowtemplate/platform-dag --watch
+#         argo list -n argo ; argo logs -n argo @latest
+#         argo cron list -n argo
+# Ohne CLI: Workflow mit spec.workflowTemplateRef.name: platform-dag per kubectl create anlegen.

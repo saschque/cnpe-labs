@@ -1,0 +1,52 @@
+# AUFGABE: Ergänze die Annotations (siehe README, Aufgabe 2.3).
+# Lösung: siehe solution.yaml im selben Ordner.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  DB_HOST: postgres
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migrate
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: busybox
+          command: ["sh", "-c", "echo running migrations; sleep 5"]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: web}
+  template:
+    metadata:
+      labels: {app: web}
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.27
+          envFrom:
+            - configMapRef: {name: app-config}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: smoke-test
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: test
+          image: curlimages/curl
+          command: ["sh", "-c", "echo smoke test ok"]

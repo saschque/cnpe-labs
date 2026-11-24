@@ -1,0 +1,41 @@
+# Provisioner herausfinden: kubectl get storageclass
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: fast-retain
+provisioner: rancher.io/local-path
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer   # PVC bleibt Pending bis ein Pod geplant wird
+allowVolumeExpansion: true
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ledger-data
+  namespace: team-payments
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: fast-retain
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ledger
+  namespace: team-payments
+spec:
+  containers:
+    - name: app
+      image: busybox
+      command: ["sh", "-c", "sleep 3600"]
+      volumeMounts:
+        - name: data
+          mountPath: /data
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: ledger-data
+# Warum Pending? WaitForFirstConsumer verzögert Binding/Provisioning, bis der Scheduler
+# einen Node gewählt hat – so landet das Volume in der richtigen Zone/auf dem richtigen Node.

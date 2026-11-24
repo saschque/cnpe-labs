@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+data:
+  DB_HOST: postgres
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migrate
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  backoffLimit: 1
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: busybox
+          command: ["sh", "-c", "echo running migrations; sleep 5"]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: web}
+  template:
+    metadata:
+      labels: {app: web}
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.27
+          envFrom:
+            - configMapRef: {name: app-config}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: smoke-test
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: test
+          image: curlimages/curl
+          command: ["sh", "-c", "echo smoke test ok"]
+# Antwort: Schlägt der PreSync-Hook fehl, bricht der gesamte Sync ab – das Deployment
+# wird NICHT aktualisiert, die App ist "Sync Failed". PostSync läuft nur nach erfolgreichem
+# Sync und wenn alle Ressourcen Healthy sind.
+# Reihenfolge: Phase (PreSync → Sync → PostSync), innerhalb einer Phase nach Wave (aufsteigend),
+# dann nach Kind (Namespace vor ConfigMap vor Deployment …), dann nach Name.

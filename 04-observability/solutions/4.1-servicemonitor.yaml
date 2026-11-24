@@ -1,0 +1,22 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: podinfo
+  namespace: demo
+  # labels:
+  #   release: kps     # nötig, wenn serviceMonitorSelector auf dieses Label filtert
+spec:
+  selector:
+    matchLabels:
+      app: podinfo     # Label des SERVICE (kubectl expose übernimmt app=podinfo)
+  namespaceSelector:
+    matchNames: ["demo"]
+  endpoints:
+    - port: http       # Port-NAME des Service, nicht die Nummer
+      path: /metrics
+      interval: 15s
+# Frage 3: Welche Labels erwartet Prometheus?
+#   kubectl -n monitoring get prometheus -o jsonpath='{.items[0].spec.serviceMonitorSelector}'
+# → Label release: kps zum ServiceMonitor hinzufügen.
+# Target DOWN / fehlt? Prüfen: Service-Labels, Port-Name, Endpoints vorhanden,
+# serviceMonitorNamespaceSelector, Prometheus-Logs (Container prometheus).

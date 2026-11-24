@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ci
+---
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: git-clone-simple
+  namespace: ci
+spec:
+  params:
+    - name: repo-url
+      type: string
+  workspaces:
+    - name: output
+  steps:
+    - name: clone
+      image: alpine/git
+      workingDir: $(workspaces.output.path)
+      script: |
+        #!/bin/sh
+        set -e
+        rm -rf ./* ./.[!.]* 2>/dev/null || true
+        git clone --depth 1 "$(params.repo-url)" .
+        ls -la
+---
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: lint-yaml
+  namespace: ci
+spec:
+  params:
+    - name: path
+      type: string
+      default: "."
+  workspaces:
+    - name: source
+  steps:
+    - name: lint
+      image: cytopia/yamllint
+      workingDir: $(workspaces.source.path)
+      command: ["yamllint"]
+      args: ["-d", "relaxed", "$(params.path)"]
+---
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: ci-pipeline
+  namespace: ci
+spec:
+  params:
+    - name: repo-url
+      type: string
+    - name: path
+      type: string
+      default: "."
+  workspaces:
+    - name: shared
+  tasks:
+    - name: clone
+      taskRef:
+        name: git-clone-simple
+      params:
+        - name: repo-url
+          value: $(params.repo-url)
+      workspaces:
+        - name: output
+          workspace: shared
+    - name: lint
+      runAfter: ["clone"]
+      taskRef:
+        name: lint-yaml
+      params:
+        - name: path
+          value: $(params.path)
+      workspaces:
+        - name: source
+          workspace: shared
+---
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: ci-pipeline-run-      # kubectl create -f (nicht apply!) wegen generateName
+  namespace: ci
+spec:
+  pipelineRef:
+    name: ci-pipeline
+  params:
+    - name: repo-url
+      value: https://github.com/argoproj/argocd-example-apps
+    - name: path
+      value: guestbook
+  workspaces:
+    - name: shared
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 1Gi
+# Logs:  tkn pipelinerun logs --last -f -n ci
+#        kubectl -n ci get pipelineruns ; kubectl -n ci logs -l tekton.dev/pipelineTask=lint --all-containers
+# Hub-Alternative: Task "git-clone" aus dem Tekton Catalog über Resolver:
+#   taskRef: {resolver: hub, params: [{name: name, value: git-clone}, {name: version, value: "0.9"}]}

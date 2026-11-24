@@ -1,0 +1,90 @@
+# Lösung 3.1 + 3.2 (3.2-Teile sind markiert)
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: databases.platform.example.org      # MUSS <plural>.<group> sein
+spec:
+  group: platform.example.org
+  scope: Namespaced
+  names:
+    kind: Database
+    plural: databases
+    singular: database
+    shortNames: ["db"]
+    categories: ["platform"]                # kubectl get platform
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      deprecated: true                                        # 3.2
+      deprecationWarning: "platform.example.org/v1alpha1 Database ist veraltet, nutze v1beta1"
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Engine
+          type: string
+          jsonPath: .spec.engine
+        - name: Version
+          type: string
+          jsonPath: .spec.version
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema: &schema
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required: ["engine", "version"]
+              x-kubernetes-validations:                         # 3.2
+                - rule: "!self.highAvailability || self.storageGB >= 20"
+                  message: "HA benötigt mindestens 20 GB"
+              properties:
+                engine:
+                  type: string
+                  enum: ["postgres", "mysql"]
+                  x-kubernetes-validations:                     # 3.2 immutable
+                    - rule: "self == oldSelf"
+                      message: "engine ist unveränderlich"
+                version:
+                  type: string
+                storageGB:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  default: 10
+                highAvailability:
+                  type: boolean
+                  default: false
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+    - name: v1beta1                                           # 3.2
+      served: true
+      storage: false
+      subresources:
+        status: {}
+      schema: *schema
+      # Ohne Conversion-Webhook gilt strategy: None – nur apiVersion wird umgeschrieben,
+      # daher müssen beide Schemas kompatibel sein.
+---
+# Test-Objekte
+# apiVersion: platform.example.org/v1alpha1
+# kind: Database
+# metadata: {name: orders, namespace: default}
+# spec: {engine: postgres, version: "16"}
+#
+# Muss scheitern:
+#   spec: {engine: oracle, version: "19"}                      → Unsupported value
+#   spec: {engine: postgres, version: "16", storageGB: 500}    → should be less than or equal to 100
+#   spec: {engine: postgres, version: "16", highAvailability: true}  → HA benötigt mindestens 20 GB
+#
+# Hinweis: YAML-Anker (&schema/*schema) funktionieren mit kubectl apply.
+# Status setzen (Subresource!):
+#   kubectl patch db orders --subresource=status --type=merge -p '{"status":{"phase":"Ready"}}'

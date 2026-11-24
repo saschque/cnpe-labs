@@ -1,0 +1,99 @@
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8srequiredlabels           # muss lowercase(kind) sein
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sRequiredLabels
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            labels:
+              type: array
+              items:
+                type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8srequiredlabels
+
+        violation[{"msg": msg, "details": {"missing_labels": missing}}] {
+          provided := {label | input.review.object.metadata.labels[label]}
+          required := {label | label := input.parameters.labels[_]}
+          missing := required - provided
+          count(missing) > 0
+          msg := sprintf("Fehlende Labels: %v", [missing])
+        }
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRequiredLabels
+metadata:
+  name: ns-must-have-owner
+spec:
+  enforcementAction: dryrun        # später: deny
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Namespace"]
+    excludedNamespaces: ["kube-system", "gatekeeper-system"]
+  parameters:
+    labels: ["owner"]
+---
+# Bonus: erlaubte Registries
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8sallowedrepos
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sAllowedRepos
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            repos:
+              type: array
+              items:
+                type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8sallowedrepos
+
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.containers[_]
+          not startswith_any(container.image, input.parameters.repos)
+          msg := sprintf("Image %v stammt nicht aus einer erlaubten Registry %v", [container.image, input.parameters.repos])
+        }
+
+        startswith_any(image, repos) {
+          startswith(image, repos[_])
+        }
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sAllowedRepos
+metadata:
+  name: allowed-registries
+spec:
+  enforcementAction: dryrun
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    namespaces: ["shop"]
+  parameters:
+    repos: ["ghcr.io/", "registry.k8s.io/"]
+# Hinweis: Gatekeeper v3.19+ / neuere Templates akzeptieren auch Rego v1 (import rego.v1,
+# "violation contains ... if"). Die obige Syntax (v0) funktioniert weiterhin als Standard.
+# Audit:
+#   kubectl get k8srequiredlabels ns-must-have-owner -o jsonpath='{.status.totalViolations}'; echo
+#   kubectl get k8srequiredlabels ns-must-have-owner -o json | jq '.status.violations[] | {name, message}'
+# Umstellen:
+#   kubectl patch k8srequiredlabels ns-must-have-owner --type=merge -p '{"spec":{"enforcementAction":"deny"}}'
+#   kubectl create ns no-owner        → admission webhook "validation.gatekeeper.sh" denied the request
+# Status des Templates:  kubectl get constrainttemplate k8srequiredlabels -o jsonpath='{.status.created}'

@@ -1,0 +1,58 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-alerts
+  namespace: monitoring
+  # labels: {release: kps}   # falls ruleSelector das verlangt
+spec:
+  groups:
+    - name: platform.recording
+      rules:
+        - record: namespace:container_cpu_usage:sum_rate5m
+          expr: sum by (namespace) (rate(container_cpu_usage_seconds_total{container!=""}[5m]))
+    - name: platform.alerts
+      rules:
+        - alert: PodCrashLooping
+          expr: increase(kube_pod_container_status_restarts_total[15m]) > 3
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} ist im CrashLoop"
+            description: "Container {{ $labels.container }} wurde {{ $value | humanize }}× in 15 Min. neu gestartet."
+        - alert: HighErrorRate
+          expr: |
+            sum(rate(http_requests_total{namespace="demo", status=~"5.."}[5m]))
+              /
+            sum(rate(http_requests_total{namespace="demo"}[5m])) > 0.05
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Hohe Fehlerrate bei podinfo"
+            description: "{{ $value | humanizePercentage }} der Requests liefern 5xx."
+---
+# Bonus: AlertmanagerConfig (CRD des Prometheus Operators)
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: critical-webhook
+  namespace: monitoring
+spec:
+  route:
+    receiver: webhook
+    groupBy: ["alertname", "namespace"]
+    groupWait: 30s
+    repeatInterval: 4h
+    matchers:
+      - name: severity
+        value: critical
+        matchType: "="
+  receivers:
+    - name: webhook
+      webhookConfigs:
+        - url: http://alert-sink.monitoring:8080
+          sendResolved: true
+# Achtung: Alertmanager muss AlertmanagerConfigs auswählen
+#   (alertmanager.alertmanagerSpec.alertmanagerConfigSelector im Helm-Chart).
+# Regeln validieren: promtool check rules <datei>  (Regeln vorher aus dem CRD extrahieren)

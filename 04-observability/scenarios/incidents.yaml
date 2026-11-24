@@ -1,0 +1,153 @@
+# Incident-Szenarien für Aufgabe 4.7 – NICHT die Kommentare/Lösungen spoilern, einfach anwenden.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: incidents
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: incidents-quota
+  namespace: incidents
+spec:
+  hard:
+    requests.memory: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: s1-web
+  namespace: incidents
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: s1-web}}
+  template:
+    metadata: {labels: {app: s1-web}}
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.277
+          resources: {requests: {memory: 32Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: s2-api
+  namespace: incidents
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: s2-api}}
+  template:
+    metadata: {labels: {app: s2-api}}
+    spec:
+      containers:
+        - name: api
+          image: busybox
+          command: ["sh", "-c", "echo starting; test -n \"$DATABASE_URL\" || { echo 'FATAL: DATABASE_URL not set'; exit 1; }; sleep 3600"]
+          resources: {requests: {memory: 16Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: s3-worker
+  namespace: incidents
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: s3-worker}}
+  template:
+    metadata: {labels: {app: s3-worker}}
+    spec:
+      containers:
+        - name: worker
+          image: polinux/stress
+          command: ["stress", "--vm", "1", "--vm-bytes", "150M", "--vm-hang", "1"]
+          resources:
+            requests: {memory: 64Mi}
+            limits: {memory: 100Mi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: s4-batch
+  namespace: incidents
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: s4-batch}}
+  template:
+    metadata: {labels: {app: s4-batch}}
+    spec:
+      nodeSelector:
+        disktype: ssd
+      containers:
+        - name: batch
+          image: busybox
+          command: ["sleep", "3600"]
+          resources: {requests: {memory: 16Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: s5-frontend
+  namespace: incidents
+spec:
+  replicas: 2
+  selector: {matchLabels: {app: s5-frontend}}
+  template:
+    metadata: {labels: {app: s5-frontend}}
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.27
+          ports: [{containerPort: 80}]
+          resources: {requests: {memory: 32Mi}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: s5-frontend
+  namespace: incidents
+spec:
+  selector:
+    app: frontend
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: s6-cache
+  namespace: incidents
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: s6-cache}}
+  template:
+    metadata: {labels: {app: s6-cache}}
+    spec:
+      containers:
+        - name: redis
+          image: redis:7
+          ports: [{containerPort: 6379}]
+          readinessProbe:
+            tcpSocket: {port: 6380}
+            periodSeconds: 5
+          resources: {requests: {memory: 32Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: s7-report
+  namespace: incidents
+spec:
+  replicas: 3
+  progressDeadlineSeconds: 60
+  strategy:
+    rollingUpdate: {maxUnavailable: 0, maxSurge: 1}
+  selector: {matchLabels: {app: s7-report}}
+  template:
+    metadata: {labels: {app: s7-report}}
+    spec:
+      containers:
+        - name: report
+          image: nginx:1.27
+          resources: {requests: {memory: 1500Mi}}

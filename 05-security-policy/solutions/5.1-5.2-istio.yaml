@@ -1,0 +1,100 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: shop
+  labels:
+    istio-injection: enabled
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: legacy
+---
+# httpbin + sleep werden für beide Namespaces gebraucht – hier für shop, für legacy
+# dieselben Objekte mit namespace: legacy anlegen (oder: kubectl apply -n legacy -f <ohne namespace>)
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: httpbin, namespace: shop}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: httpbin, namespace: shop}
+spec:
+  selector: {matchLabels: {app: httpbin}}
+  template:
+    metadata: {labels: {app: httpbin}}
+    spec:
+      serviceAccountName: httpbin
+      containers:
+        - name: httpbin
+          image: kennethreitz/httpbin
+          ports: [{containerPort: 80}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: httpbin, namespace: shop}
+spec:
+  selector: {app: httpbin}
+  ports: [{name: http, port: 80}]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: sleep, namespace: shop}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: sleep, namespace: shop}
+spec:
+  selector: {matchLabels: {app: sleep}}
+  template:
+    metadata: {labels: {app: sleep}}
+    spec:
+      serviceAccountName: sleep
+      containers:
+        - name: sleep
+          image: curlimages/curl
+          command: ["sleep", "infinity"]
+---
+# 5.1 STRICT mTLS im Namespace shop
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: shop
+spec:
+  mtls:
+    mode: STRICT
+---
+# 5.2 deny-all: leere Spec = keine Regel passt = alles verweigert
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-all
+  namespace: shop
+spec: {}
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-sleep-get
+  namespace: shop
+spec:
+  selector:
+    matchLabels:
+      app: httpbin
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals: ["cluster.local/ns/shop/sa/sleep"]   # SPIFFE-ID, erfordert mTLS
+      to:
+        - operation:
+            methods: ["GET"]
+            paths: ["/get", "/headers"]
+# Tests:
+#   kubectl -n legacy exec deploy/sleep -- curl -s -o /dev/null -w '%{http_code}\n' http://httpbin.shop/get
+#     → 000 / "Connection reset by peer" (kein mTLS-Client)
+#   kubectl -n shop exec deploy/sleep -c sleep -- curl -s -o /dev/null -w '%{http_code}\n' http://httpbin.shop/get   → 200
+#   kubectl -n shop exec deploy/sleep -c sleep -- curl -s -o /dev/null -w '%{http_code}\n' -X POST http://httpbin.shop/post → 403
+# Debug: istioctl x describe pod <pod> -n shop ; istioctl proxy-config ... ; istioctl analyze -n shop
+# Mesh-weit: PeerAuthentication "default" im Namespace istio-system.

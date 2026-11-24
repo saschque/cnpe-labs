@@ -1,0 +1,102 @@
+# Kyverno braucht Rechte, um RoleBindings/Quotas/NetworkPolicies zu erzeugen.
+# Neuere Kyverno-Versionen haben ResourceQuota/NetworkPolicy oft schon; RoleBinding mit
+# ClusterRole "edit" erfordert, dass Kyverno selbst diese Rechte besitzt (Eskalationsschutz).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kyverno-generate-tenant
+  labels:
+    rbac.kyverno.io/aggregate-to-background-controller: "true"
+    rbac.kyverno.io/aggregate-to-admission-controller: "true"
+rules:
+  - apiGroups: [""]
+    resources: ["resourcequotas"]
+    verbs: ["create", "update", "patch", "delete", "get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["create", "update", "patch", "delete", "get", "list", "watch"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["rolebindings"]
+    verbs: ["create", "update", "patch", "delete", "get", "list", "watch"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["clusterroles"]
+    resourceNames: ["edit"]
+    verbs: ["bind"]
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: tenant-bootstrap
+spec:
+  rules:
+    - name: quota
+      match:
+        any:
+          - resources:
+              kinds: ["Namespace"]
+              selector:
+                matchLabels:
+                  platform.example.org/tenant: "true"
+      generate:
+        apiVersion: v1
+        kind: ResourceQuota
+        name: tenant-quota
+        namespace: "{{request.object.metadata.name}}"
+        synchronize: true
+        data:
+          spec:
+            hard:
+              requests.cpu: "2"
+              requests.memory: 4Gi
+    - name: default-deny
+      match:
+        any:
+          - resources:
+              kinds: ["Namespace"]
+              selector:
+                matchLabels:
+                  platform.example.org/tenant: "true"
+      generate:
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        name: default-deny
+        namespace: "{{request.object.metadata.name}}"
+        synchronize: true
+        data:
+          spec:
+            podSelector: {}
+            policyTypes: ["Ingress"]
+    - name: team-rolebinding
+      match:
+        any:
+          - resources:
+              kinds: ["Namespace"]
+              selector:
+                matchLabels:
+                  platform.example.org/tenant: "true"
+      preconditions:
+        all:
+          - key: "{{request.object.metadata.labels.team || ''}}"
+            operator: NotEquals
+            value: ""
+      generate:
+        apiVersion: rbac.authorization.k8s.io/v1
+        kind: RoleBinding
+        name: team-edit
+        namespace: "{{request.object.metadata.name}}"
+        synchronize: true
+        data:
+          roleRef:
+            apiGroup: rbac.authorization.k8s.io
+            kind: ClusterRole
+            name: edit
+          subjects:
+            - apiGroup: rbac.authorization.k8s.io
+              kind: Group
+              name: "{{request.object.metadata.labels.team}}-devs"
+# Test:
+#   kubectl create ns demo-tenant
+#   kubectl label ns demo-tenant platform.example.org/tenant=true team=blue
+#   (Label-Änderung = UPDATE; generate greift standardmäßig bei CREATE und UPDATE)
+#   kubectl -n demo-tenant get resourcequota,networkpolicy,rolebinding
+#   kubectl get updaterequests -n kyverno     # bei Problemen

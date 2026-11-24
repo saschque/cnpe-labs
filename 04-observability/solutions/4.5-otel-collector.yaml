@@ -1,0 +1,85 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: observability
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_percentage: 80
+        spike_limit_percentage: 25
+      batch: {}
+    exporters:
+      otlp/jaeger:
+        endpoint: jaeger.observability:4317
+        tls:
+          insecure: true
+      debug:
+        verbosity: basic
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]    # memory_limiter immer zuerst
+          exporters: [otlp/jaeger, debug]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: observability
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: otel-collector}
+  template:
+    metadata:
+      labels: {app: otel-collector}
+    spec:
+      containers:
+        - name: collector
+          image: otel/opentelemetry-collector-contrib:latest
+          args: ["--config=/conf/config.yaml"]
+          ports:
+            - containerPort: 4317
+            - containerPort: 4318
+          volumeMounts:
+            - name: config
+              mountPath: /conf
+      volumes:
+        - name: config
+          configMap:
+            name: otel-collector-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: observability
+spec:
+  selector: {app: otel-collector}
+  ports:
+    - {name: otlp-grpc, port: 4317}
+    - {name: otlp-http, port: 4318}
+# Schritt 2 – podinfo instrumentieren:
+#   kubectl -n demo set env deploy/podinfo \
+#     OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://otel-collector.observability:4317
+#   kubectl -n demo patch deploy podinfo --type=json -p='[
+#     {"op":"add","path":"/spec/template/spec/containers/0/command",
+#      "value":["./podinfo","--port=9898","--otel-service-name=podinfo"]}]'
+# Schritt 3:
+#   kubectl -n demo run curl --rm -it --image=curlimages/curl -- \
+#     sh -c 'for i in $(seq 50); do curl -s podinfo:9898/api/info >/dev/null; done'
+#   kubectl -n observability logs deploy/otel-collector | grep -i span
+#   Jaeger-UI → Service "podinfo"
+# Alternative: OpenTelemetry Operator mit CRDs OpenTelemetryCollector + Instrumentation
+#   (Auto-Instrumentierung per Annotation instrumentation.opentelemetry.io/inject-java: "true")

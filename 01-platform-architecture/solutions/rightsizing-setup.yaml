@@ -1,0 +1,31 @@
+# SETUP für Aufgabe 1.7 – zuerst anwenden
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rightsizing
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oversized
+  namespace: rightsizing
+spec:
+  replicas: 6
+  selector:
+    matchLabels:
+      app: oversized
+  template:
+    metadata:
+      labels:
+        app: oversized
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.27
+          resources:
+            requests:
+              cpu: "1"
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 2Gi

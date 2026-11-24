@@ -1,0 +1,47 @@
+# CLI-Alternative (generiert YAML mit --export):
+#   flux create source git podinfo --url=https://github.com/stefanprodan/podinfo \
+#     --branch=master --interval=1m --export
+#   flux create kustomization podinfo --source=GitRepository/podinfo --path=./kustomize \
+#     --prune=true --interval=5m --target-namespace=podinfo \
+#     --health-check="Deployment/podinfo.podinfo" --export
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: podinfo
+  namespace: flux-system
+spec:
+  interval: 1m
+  url: https://github.com/stefanprodan/podinfo
+  ref:
+    branch: master
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: podinfo
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: podinfo
+  namespace: flux-system
+spec:
+  interval: 5m
+  path: ./kustomize
+  prune: true
+  targetNamespace: podinfo
+  sourceRef:
+    kind: GitRepository
+    name: podinfo
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: podinfo
+      namespace: podinfo
+  timeout: 2m
+# Schritt 3:
+#   flux suspend kustomization podinfo
+#   kubectl -n podinfo scale deploy podinfo --replicas=5     # bleibt bestehen
+#   flux resume kustomization podinfo                         # Drift wird korrigiert
+#   flux reconcile kustomization podinfo --with-source        # sofort, inkl. Git-Fetch
+#   flux get kustomizations

@@ -1,0 +1,102 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tenant-provisioner
+  namespace: argo
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: tenant-provisioner
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["create", "get", "list"]
+  - apiGroups: [""]
+    resources: ["resourcequotas"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["platform.example.org"]
+    resources: ["webapps"]
+    verbs: ["create", "get", "list", "watch"]
+  # Argo Workflows Executor muss Task-Ergebnisse schreiben dürfen
+  - apiGroups: ["argoproj.io"]
+    resources: ["workflowtaskresults"]
+    verbs: ["create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tenant-provisioner
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tenant-provisioner
+subjects:
+  - kind: ServiceAccount
+    name: tenant-provisioner
+    namespace: argo
+---
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: provision-tenant
+  namespace: argo
+spec:
+  serviceAccountName: tenant-provisioner
+  entrypoint: main
+  arguments:
+    parameters:
+      - name: team
+      - name: cpu
+        value: "2"
+  templates:
+    - name: main
+      steps:
+        - - name: create-namespace
+            template: create-namespace
+        - - name: wait-for-quota
+            template: wait-for-quota
+        - - name: create-webapp
+            template: create-webapp
+    - name: create-namespace
+      resource:
+        action: create
+        manifest: |
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: tenant-{{workflow.parameters.team}}
+            labels:
+              platform.example.org/tenant: "true"
+              team: "{{workflow.parameters.team}}"
+              requested-cpu: "{{workflow.parameters.cpu}}"
+    - name: wait-for-quota
+      retryStrategy:
+        limit: "10"
+        backoff: {duration: "5s"}
+      resource:
+        action: get
+        manifest: |
+          apiVersion: v1
+          kind: ResourceQuota
+          metadata:
+            name: tenant-quota
+            namespace: tenant-{{workflow.parameters.team}}
+    - name: create-webapp
+      resource:
+        action: create
+        successCondition: status.url
+        manifest: |
+          apiVersion: platform.example.org/v1alpha1
+          kind: WebApp
+          metadata:
+            name: welcome
+            namespace: tenant-{{workflow.parameters.team}}
+          spec:
+            image: nginx:1.27
+            replicas: 1
+# Start:
+#   argo submit -n argo --from workflowtemplate/provision-tenant -p team=green -p cpu=4 --watch
+# Hinweis: Der cpu-Parameter wird hier nur als Label übergeben. Erweiterung: Quota im Workflow
+# mit action: patch auf den Wert setzen – dann aber synchronize in Kyverno beachten
+# (Kyverno würde die Änderung zurücksetzen!).

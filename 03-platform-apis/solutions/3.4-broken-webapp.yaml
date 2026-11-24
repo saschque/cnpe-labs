@@ -1,0 +1,48 @@
+# SETUP für Aufgabe 3.4 – absichtlich fehlerhaft. Lösung: 3.4-solution.md
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: webapp-broken
+spec:
+  compositeTypeRef:
+    apiVersion: platform.example.org/v1alpha1
+    kind: WebApp
+  mode: Pipeline
+  pipeline:
+    - step: patch-and-transform
+      functionRef:
+        name: function-patch-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: deployment
+            base:
+              apiVersion: apps/v1
+              kind: Deployment
+              spec:
+                replicas: 1
+                selector:
+                  matchLabels: {app: broken}
+                template:
+                  metadata:
+                    labels: {app: broken}
+                  spec:
+                    containers:
+                      - name: app
+                        image: placeholder
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.imgae
+                toFieldPath: spec.template.spec.containers[0].image
+---
+apiVersion: platform.example.org/v1alpha1
+kind: WebApp
+metadata:
+  name: broken
+  namespace: team-a
+spec:
+  image: nginx:does-not-exist
+  crossplane:
+    compositionRef:
+      name: webapp-broken

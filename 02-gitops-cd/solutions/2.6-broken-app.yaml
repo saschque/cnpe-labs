@@ -1,0 +1,19 @@
+# SETUP für Aufgabe 2.6 – diese Application enthält absichtlich mehrere Fehler.
+# Nicht weiterlesen, bevor du es selbst versucht hast! Lösung: 2.6-solution.md
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: broken-app
+  namespace: argocd
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps
+    targetRevision: HEAD
+    path: kustomize-guestbok
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: broken
+  syncPolicy:
+    automated:
+      prune: true
