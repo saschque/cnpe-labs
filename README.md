@@ -1,76 +1,92 @@
-# CNPE Practice – Übungsaufgaben für den Certified Cloud Native Platform Engineer
+# CNPE Labs – Practice exercises for the Certified Cloud Native Platform Engineer
 
-Hands-on-Übungen für die **CNPE**-Prüfung der Linux Foundation / CNCF.
-Die Prüfung ist **performance-basiert** (ca. 15–20 Aufgaben in 120 Minuten in einer
-Remote-Linux-Umgebung). Dieses Repo bildet die fünf offiziellen Domains nach.
+Hands-on exercises for the **CNPE** exam by the Linux Foundation / CNCF.
+The exam is **performance-based** (about 15–20 tasks in 120 minutes in a remote Linux
+environment). This repo mirrors the five official domains.
 
-| # | Domain | Gewicht | Ordner |
-|---|--------|---------|--------|
-| 1 | Platform Architecture and Infrastructure | 15 % | [`01-platform-architecture`](01-platform-architecture/) |
-| 2 | GitOps and Continuous Delivery | 25 % | [`02-gitops-cd`](02-gitops-cd/) |
-| 3 | Platform APIs and Self-Service Capabilities | 25 % | [`03-platform-apis`](03-platform-apis/) |
-| 4 | Observability and Operations | 20 % | [`04-observability`](04-observability/) |
-| 5 | Security and Policy Enforcement | 15 % | [`05-security-policy`](05-security-policy/) |
+| # | Domain | Weight | Folder | Tasks |
+|---|--------|--------|--------|-------|
+| 1 | Platform Architecture and Infrastructure | 15 % | [`01-platform-architecture`](01-platform-architecture/) | 12 |
+| 2 | GitOps and Continuous Delivery | 25 % | [`02-gitops-cd`](02-gitops-cd/) | 14 |
+| 3 | Platform APIs and Self-Service Capabilities | 25 % | [`03-platform-apis`](03-platform-apis/) | 12 |
+| 4 | Observability and Operations | 20 % | [`04-observability`](04-observability/) | 12 |
+| 5 | Security and Policy Enforcement | 15 % | [`05-security-policy`](05-security-policy/) | 13 |
 
-Dazu: [`mock-exam/`](mock-exam/) – eine komplette Probeprüfung (120 Min.) und
-[`CHEATSHEET.md`](CHEATSHEET.md) – die wichtigsten Befehle auf einen Blick.
+Plus:
+- [`mock-exams/`](mock-exams/) – four full mock exams (120 min, 17 tasks, 100 points each)
+- [`CHEATSHEET.md`](CHEATSHEET.md) – the most important commands at a glance
 
-> ⚠️ Das offizielle Curriculum (github.com/cncf/curriculum) ist die Referenz. Prüfe vor
-> der Prüfung, ob sich Domains oder Tool-Liste geändert haben.
+> ⚠️ The official curriculum (github.com/cncf/curriculum) is the reference. Check before the
+> exam whether the domains or the tool list have changed.
 
-## Tools in der Prüfungsumgebung
+## Tools in the exam environment
 
 Argo CD · Argo Workflows · Crossplane · Flagger · Flux · Gatekeeper/OPA · Grafana ·
 Istio · Jaeger · Kyverno · Linkerd · OpenCost · OpenTelemetry · Prometheus · Tekton –
 plus `kubectl`, `helm`, `kustomize`, `git`, `jq`, `yq`.
 
-## Schnellstart
+## Quick start
 
 ```bash
-# 1. Lokalen Cluster erstellen (kind, 1 Control-Plane + 2 Worker)
+# 1. Create a local cluster (kind, 1 control plane + 2 workers)
 ./setup/create-cluster.sh
 
-# 2. Nur die Tools installieren, die du gerade übst (spart RAM)
+# 2. Only install the tools you are practicing right now (saves RAM)
 ./setup/install.sh argocd flux kyverno
-./setup/install.sh all          # alles (≥ 16 GB RAM empfohlen)
+./setup/install.sh all          # everything (≥ 16 GB RAM recommended)
 
-# 3. Aufgaben bearbeiten
+# 3. Work through the tasks
 cat 01-platform-architecture/README.md
 
-# 4. Ergebnis prüfen
+# 4. Check your result
 ./01-platform-architecture/verify.sh
 ```
 
-Voraussetzungen: Docker, [kind](https://kind.sigs.k8s.io), kubectl, helm, git, jq.
-Optional: `argocd`, `flux`, `tkn`, `argo`, `istioctl`, `linkerd`, `crossplane` CLIs.
+Requirements: Docker, [kind](https://kind.sigs.k8s.io), kubectl, helm, git, jq.
+Optional: `argocd`, `flux`, `tkn`, `argo`, `istioctl`, `linkerd`, `crossplane`, `gator` CLIs.
 
-## Aufbau jeder Domain
+## Structure of each domain
 
 ```
 0X-domain/
-├── README.md        # Aufgaben (Szenario, Anforderungen, Prüfkriterien)
-├── solutions/       # Musterlösungen (erst NACH dem eigenen Versuch ansehen!)
-└── verify.sh        # Automatischer Check deiner Lösung
+├── README.md        # tasks (scenario, requirements, checks)
+├── solutions/       # reference solutions (only look AFTER your own attempt!)
+└── verify.sh        # automatic check of your solution
 ```
 
-## Lernstrategie
+## Mock exams
 
-1. **Gewichtung beachten:** GitOps + Platform APIs = 50 % der Punkte.
-2. **Doku-Navigation üben:** In der Prüfung hast du Zugriff auf die offiziellen Docs.
-   Lege dir Bookmarks an und übe, Beispiele schnell zu finden und anzupassen.
-3. **Imperativ, wo möglich:** `kubectl create ... --dry-run=client -o yaml` spart Zeit.
-4. **Kaputt machen:** `04-observability/scenarios/` enthält absichtlich defekte
-   Workloads – Fehlersuche unter Zeitdruck trainieren.
-5. **Zeitmanagement:** Erst alle Aufgaben überfliegen, Quick Wins zuerst, schwierige
-   Aufgaben markieren und später zurückkehren.
-6. **Kontext!** Jede Aufgabe nennt Cluster/Namespace – in der Prüfung immer zuerst
-   `kubectl config use-context ...` ausführen.
+| Exam | Focus | Extra tools |
+|------|-------|-------------|
+| [Exam 1](mock-exams/exam-1/) | Broad coverage of all domains | – |
+| [Exam 2](mock-exams/exam-2/) | Guardrails, self-service, OTel troubleshooting | Jaeger/OTel |
+| [Exam 3](mock-exams/exam-3/) | Service mesh, progressive delivery, troubleshooting | Istio, Flagger, Gatekeeper |
+| [Exam 4](mock-exams/exam-4/) | Cost, operator operations, audit | OpenCost |
 
-## Fortschritt
+Each exam: `setup.sh` (prepares the scenario) → 120 min timer → `verify.sh` (point-based
+scoring, pass mark 66 %) → `SOLUTIONS.md`. Ideally use a fresh cluster for each exam.
 
-- [ ] Domain 1 – Platform Architecture
+## Study strategy
+
+1. **Mind the weights:** GitOps + Platform APIs = 50 % of the points.
+2. **Practice navigating the docs:** In the exam you have access to the official docs.
+   Bookmark them and practice finding and adapting examples quickly.
+3. **Go imperative where possible:** `kubectl create ... --dry-run=client -o yaml` saves time.
+4. **Break things:** `04-observability/scenarios/` contains intentionally broken workloads –
+   train troubleshooting under time pressure.
+5. **Time management:** Skim all tasks first, take the quick wins, flag hard tasks and come
+   back to them later.
+6. **Context!** Every task names a cluster/namespace – in the exam, always run
+   `kubectl config use-context ...` first.
+
+## Progress
+
+- [ ] Domain 1 – Platform architecture
 - [ ] Domain 2 – GitOps & CD
 - [ ] Domain 3 – Platform APIs
 - [ ] Domain 4 – Observability
-- [ ] Domain 5 – Security & Policy
-- [ ] Mock Exam < 120 Min. und ≥ 66 %
+- [ ] Domain 5 – Security & policy
+- [ ] Mock exam 1 ≥ 66 %
+- [ ] Mock exam 2 ≥ 66 %
+- [ ] Mock exam 3 ≥ 66 %
+- [ ] Mock exam 4 ≥ 66 % in < 120 min

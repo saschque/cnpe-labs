@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: coinflip
+  namespace: argo
+spec:
+  serviceAccountName: argo-workflow
+  entrypoint: main
+  onExit: exit-handler
+  templates:
+    - name: main
+      steps:
+        - - name: flip
+            template: flip-coin
+        - - name: heads
+            template: say
+            arguments: {parameters: [{name: msg, value: "Heads!"}]}
+            when: "{{steps.flip.outputs.result}} == heads"
+          - name: tails
+            template: say
+            arguments: {parameters: [{name: msg, value: "Tails!"}]}
+            when: "{{steps.flip.outputs.result}} == tails"
+    - name: flip-coin
+      script:
+        image: alpine
+        command: [sh]
+        source: |
+          if [ $(( $(od -An -N1 -tu1 /dev/urandom) % 2 )) -eq 0 ]; then echo heads; else echo tails; fi
+    - name: say
+      inputs:
+        parameters: [{name: msg}]
+      container:
+        image: alpine
+        command: [echo]
+        args: ["{{inputs.parameters.msg}}"]
+    - name: exit-handler
+      container:
+        image: alpine
+        command: [echo]
+        args: ["Workflow status: {{workflow.status}}"]
+# Start:  for i in 1 2 3; do argo submit -n argo --from workflowtemplate/coinflip; done
+#         argo get -n argo @latest      → one of the steps heads/tails is "Skipped"
+# outputs.result = stdout of a script/container template (max. 256 KB).
+# For named outputs: outputs.parameters with valueFrom.path (a file in the container).

@@ -1,5 +1,5 @@
-# Lösung 3.3 – Crossplane v2
-# 1) Function installieren (aktuelle Version prüfen: https://github.com/crossplane-contrib/function-patch-and-transform/releases)
+# Solution 3.3 – Crossplane v2
+# 1) Install the function (check the current version: https://github.com/crossplane-contrib/function-patch-and-transform/releases)
 apiVersion: pkg.crossplane.io/v1
 kind: Function
 metadata:
@@ -7,7 +7,7 @@ metadata:
 spec:
   package: xpkg.crossplane.io/crossplane-contrib/function-patch-and-transform:v0.8.2
 ---
-# 2) Crossplane darf Deployments/Services verwalten (Label aggregiert in die Crossplane-ClusterRole)
+# 2) Allow Crossplane to manage Deployments/Services (the label aggregates into the Crossplane ClusterRole)
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -22,7 +22,7 @@ rules:
     resources: ["services"]
     verbs: ["*"]
 ---
-# 3) XRD = das Schema der Plattform-API
+# 3) XRD = the schema of the platform API
 apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
@@ -65,7 +65,7 @@ spec:
                 url:
                   type: string
 ---
-# 4) Composition = das Rezept
+# 4) Composition = the recipe
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
@@ -146,7 +146,7 @@ spec:
               - type: FromCompositeFieldPath
                 fromFieldPath: spec.port
                 toFieldPath: spec.ports[0].targetPort
-              # URL in den Status der XR zurückschreiben
+              # write the URL back into the XR status
               - type: CombineToComposite
                 combine:
                   variables:
@@ -159,7 +159,7 @@ spec:
             readinessChecks:
               - type: None
 ---
-# 5) Instanz (XR) – so bestellt ein Entwickler
+# 5) Instance (XR) – this is how a developer orders
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -174,13 +174,13 @@ spec:
   image: nginx:1.27
   replicas: 2
   port: 80
-# Prüfen:
+# Check:
 #   kubectl get xrd ; kubectl get composition ; kubectl get functions
 #   kubectl -n team-a get webapp shop
 #   crossplane beta trace webapp shop -n team-a
 #   kubectl -n team-a get deploy,svc
 #
-# Crossplane v1 Unterschiede:
-#   - XRD apiVersion apiextensions.crossplane.io/v1, cluster-scoped XR (Name meist mit X-Präfix, z. B. XWebApp)
-#   - Entwickler nutzen einen Claim (spec.claimNames) im Namespace
-#   - Kubernetes-Objekte werden über provider-kubernetes (kind: Object) erzeugt, nicht direkt
+# Crossplane v1 differences:
+#   - XRD apiVersion apiextensions.crossplane.io/v1, cluster-scoped XR (name usually with an X prefix, e.g. XWebApp)
+#   - developers use a claim (spec.claimNames) in the namespace
+#   - Kubernetes objects are created via provider-kubernetes (kind: Object), not directly

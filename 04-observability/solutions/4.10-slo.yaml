@@ -1,0 +1,50 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: podinfo-slo
+  namespace: monitoring
+spec:
+  groups:
+    - name: podinfo-slo.recording
+      rules:
+        - record: sli:podinfo_errors:ratio_rate5m
+          expr: |
+            sum(rate(http_requests_total{namespace="demo", status=~"5.."}[5m]))
+              / sum(rate(http_requests_total{namespace="demo"}[5m]))
+        - record: sli:podinfo_errors:ratio_rate1h
+          expr: |
+            sum(rate(http_requests_total{namespace="demo", status=~"5.."}[1h]))
+              / sum(rate(http_requests_total{namespace="demo"}[1h]))
+        - record: sli:podinfo_errors:ratio_rate6h
+          expr: |
+            sum(rate(http_requests_total{namespace="demo", status=~"5.."}[6h]))
+              / sum(rate(http_requests_total{namespace="demo"}[6h]))
+    - name: podinfo-slo.alerts
+      rules:
+        # Error budget = 1 - 0.999 = 0.001. Burn rate 14.4 = the budget of a 30-day window
+        # would be used up in ~2 days (2 % of the budget per hour).
+        - alert: PodinfoErrorBudgetBurnFast
+          expr: |
+            sli:podinfo_errors:ratio_rate1h > (14.4 * 0.001)
+              and
+            sli:podinfo_errors:ratio_rate5m > (14.4 * 0.001)
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "podinfo is burning its error budget very fast"
+            description: "Error ratio 1h: {{ $value | humanizePercentage }}"
+        - alert: PodinfoErrorBudgetBurnSlow
+          expr: |
+            sli:podinfo_errors:ratio_rate6h > (6 * 0.001)
+              and
+            sli:podinfo_errors:ratio_rate1h > (6 * 0.001)
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "podinfo is burning its error budget steadily"
+# Why two windows? The long window provides significance (no alerts for short spikes),
+# the short window makes the alert resolve quickly once the problem is fixed.
+# (Google SRE Workbook, "Multiwindow, Multi-Burn-Rate Alerts")
+# Generators: Sloth, Pyrra or OpenSLO create such rules from an SLO definition.

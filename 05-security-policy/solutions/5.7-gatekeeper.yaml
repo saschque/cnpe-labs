@@ -1,7 +1,7 @@
 apiVersion: templates.gatekeeper.sh/v1
 kind: ConstraintTemplate
 metadata:
-  name: k8srequiredlabels           # muss lowercase(kind) sein
+  name: k8srequiredlabels           # must be lowercase(kind)
 spec:
   crd:
     spec:
@@ -25,7 +25,7 @@ spec:
           required := {label | label := input.parameters.labels[_]}
           missing := required - provided
           count(missing) > 0
-          msg := sprintf("Fehlende Labels: %v", [missing])
+          msg := sprintf("Missing labels: %v", [missing])
         }
 ---
 apiVersion: constraints.gatekeeper.sh/v1beta1
@@ -33,7 +33,7 @@ kind: K8sRequiredLabels
 metadata:
   name: ns-must-have-owner
 spec:
-  enforcementAction: dryrun        # später: deny
+  enforcementAction: dryrun        # later: deny
   match:
     kinds:
       - apiGroups: [""]
@@ -42,7 +42,7 @@ spec:
   parameters:
     labels: ["owner"]
 ---
-# Bonus: erlaubte Registries
+# Bonus: allowed registries
 apiVersion: templates.gatekeeper.sh/v1
 kind: ConstraintTemplate
 metadata:
@@ -68,7 +68,7 @@ spec:
         violation[{"msg": msg}] {
           container := input.review.object.spec.containers[_]
           not startswith_any(container.image, input.parameters.repos)
-          msg := sprintf("Image %v stammt nicht aus einer erlaubten Registry %v", [container.image, input.parameters.repos])
+          msg := sprintf("Image %v is not from an allowed registry %v", [container.image, input.parameters.repos])
         }
 
         startswith_any(image, repos) {
@@ -88,12 +88,12 @@ spec:
     namespaces: ["shop"]
   parameters:
     repos: ["ghcr.io/", "registry.k8s.io/"]
-# Hinweis: Gatekeeper v3.19+ / neuere Templates akzeptieren auch Rego v1 (import rego.v1,
-# "violation contains ... if"). Die obige Syntax (v0) funktioniert weiterhin als Standard.
+# Note: Gatekeeper v3.19+ / newer templates also accept Rego v1 (import rego.v1,
+# "violation contains ... if"). The syntax above (v0) still works as the default.
 # Audit:
 #   kubectl get k8srequiredlabels ns-must-have-owner -o jsonpath='{.status.totalViolations}'; echo
 #   kubectl get k8srequiredlabels ns-must-have-owner -o json | jq '.status.violations[] | {name, message}'
-# Umstellen:
+# Switch:
 #   kubectl patch k8srequiredlabels ns-must-have-owner --type=merge -p '{"spec":{"enforcementAction":"deny"}}'
 #   kubectl create ns no-owner        → admission webhook "validation.gatekeeper.sh" denied the request
-# Status des Templates:  kubectl get constrainttemplate k8srequiredlabels -o jsonpath='{.status.created}'
+# Template status:  kubectl get constrainttemplate k8srequiredlabels -o jsonpath='{.status.created}'

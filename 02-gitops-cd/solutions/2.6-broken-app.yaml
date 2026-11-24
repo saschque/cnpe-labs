@@ -1,5 +1,5 @@
-# SETUP für Aufgabe 2.6 – diese Application enthält absichtlich mehrere Fehler.
-# Nicht weiterlesen, bevor du es selbst versucht hast! Lösung: 2.6-solution.md
+# SETUP for task 2.6 – this Application intentionally contains several errors.
+# Don't read further before trying it yourself! Solution: 2.6-solution.md
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

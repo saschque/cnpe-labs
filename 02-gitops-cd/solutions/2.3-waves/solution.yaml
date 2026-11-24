@@ -59,8 +59,8 @@ spec:
         - name: test
           image: curlimages/curl
           command: ["sh", "-c", "echo smoke test ok"]
-# Antwort: Schlägt der PreSync-Hook fehl, bricht der gesamte Sync ab – das Deployment
-# wird NICHT aktualisiert, die App ist "Sync Failed". PostSync läuft nur nach erfolgreichem
-# Sync und wenn alle Ressourcen Healthy sind.
-# Reihenfolge: Phase (PreSync → Sync → PostSync), innerhalb einer Phase nach Wave (aufsteigend),
-# dann nach Kind (Namespace vor ConfigMap vor Deployment …), dann nach Name.
+# Answer: If the PreSync hook fails, the whole sync is aborted – the Deployment
+# is NOT updated, the app is "Sync Failed". PostSync only runs after a successful
+# sync and when all resources are Healthy.
+# Order: phase (PreSync → Sync → PostSync), within a phase by wave (ascending),
+# then by kind (Namespace before ConfigMap before Deployment …), then by name.

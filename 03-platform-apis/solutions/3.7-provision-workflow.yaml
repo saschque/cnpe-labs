@@ -18,7 +18,7 @@ rules:
   - apiGroups: ["platform.example.org"]
     resources: ["webapps"]
     verbs: ["create", "get", "list", "watch"]
-  # Argo Workflows Executor muss Task-Ergebnisse schreiben dürfen
+  # the Argo Workflows executor must be allowed to write task results
   - apiGroups: ["argoproj.io"]
     resources: ["workflowtaskresults"]
     verbs: ["create", "patch"]
@@ -97,6 +97,6 @@ spec:
             replicas: 1
 # Start:
 #   argo submit -n argo --from workflowtemplate/provision-tenant -p team=green -p cpu=4 --watch
-# Hinweis: Der cpu-Parameter wird hier nur als Label übergeben. Erweiterung: Quota im Workflow
-# mit action: patch auf den Wert setzen – dann aber synchronize in Kyverno beachten
-# (Kyverno würde die Änderung zurücksetzen!).
+# Note: the cpu parameter is only passed as a label here. Extension: set the quota in the workflow
+# with action: patch – but watch out for synchronize in Kyverno
+# (Kyverno would revert the change!).

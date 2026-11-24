@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Bereitet die Mock-Exam-Umgebung vor. Vor dem Starten des Timers ausführen.
+# Prepares mock exam 1. Run before starting the timer.
 set -euo pipefail
 
 kubectl create ns mx-team-red --dry-run=client -o yaml | kubectl apply -f -
 kubectl create ns mx-incident --dry-run=client -o yaml | kubectl apply -f -
 kubectl create ns ci --dry-run=client -o yaml | kubectl apply -f -
 
-# Aufgabe 2/3/17: Workloads
+# Task 2/3/17: workloads
 kubectl apply -f - <<'EOF'
 apiVersion: apps/v1
 kind: Deployment
@@ -39,7 +39,7 @@ spec:
           resources: {requests: {cpu: 10m, memory: 16Mi}, limits: {memory: 32Mi}}
 EOF
 
-# Aufgabe 5: kaputte Application
+# Task 5: broken Application
 kubectl apply -f - <<'EOF'
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -60,7 +60,7 @@ spec:
     syncOptions: ["CreateNamespace=true"]
 EOF
 
-# Aufgabe 10: Function, RBAC, XRD
+# Task 10: function, RBAC, XRD
 kubectl apply -f - <<'EOF'
 apiVersion: pkg.crossplane.io/v1
 kind: Function
@@ -100,7 +100,7 @@ spec:
                 sizeGB: {type: integer}
 EOF
 
-# Aufgabe 13: kaputte App
+# Task 13: broken app
 kubectl apply -f - <<'EOF'
 apiVersion: v1
 kind: ConfigMap
@@ -132,4 +132,4 @@ spec:
   ports: [{port: 80, targetPort: 80}]
 EOF
 
-echo "✅ Mock-Exam-Umgebung bereit. Timer starten: 120 Minuten."
+echo "✅ Mock exam 1 ready. Start the timer: 120 minutes."

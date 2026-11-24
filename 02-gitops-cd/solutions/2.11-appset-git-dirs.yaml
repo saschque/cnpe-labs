@@ -1,0 +1,39 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: example-dirs
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - git:
+        repoURL: https://github.com/argoproj/argocd-example-apps
+        revision: HEAD
+        directories:
+          - path: "*-guestbook"
+          - path: jsonnet-guestbook
+            exclude: true
+  syncPolicy:
+    preserveResourcesOnDeletion: true    # bonus: resources survive deleting the AppSet
+  template:
+    metadata:
+      name: '{{.path.basename}}'
+      labels:
+        generated-by: example-dirs
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/argoproj/argocd-example-apps
+        targetRevision: HEAD
+        path: '{{.path.path}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: 'dir-{{.path.basename}}'
+      syncPolicy:
+        automated: {prune: true, selfHeal: true}
+        syncOptions: [CreateNamespace=true]
+# Check: kubectl -n argocd get applications -l generated-by=example-dirs
+# Other generators: list, cluster, git (files), matrix, merge, scmProvider, pullRequest
+# Note: preserveResourcesOnDeletion protects the apps' Kubernetes resources; the
+# Application objects themselves are deleted with the AppSet (otherwise: --cascade=orphan when deleting).

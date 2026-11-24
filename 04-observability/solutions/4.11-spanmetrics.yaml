@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: observability
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_percentage: 80
+        spike_limit_percentage: 25
+      batch: {}
+    connectors:
+      spanmetrics:                      # exporter in the traces pipeline, receiver in the metrics pipeline
+        histogram:
+          explicit:
+            buckets: [10ms, 50ms, 100ms, 250ms, 500ms, 1s, 2s]
+        dimensions:
+          - name: http.method
+          - name: http.status_code
+    exporters:
+      otlp/jaeger:
+        endpoint: jaeger.observability:4317
+        tls:
+          insecure: true
+      prometheus:
+        endpoint: 0.0.0.0:8889
+      debug:
+        verbosity: basic
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [otlp/jaeger, spanmetrics, debug]
+        metrics:
+          receivers: [spanmetrics]
+          processors: [batch]
+          exporters: [prometheus]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: observability
+  labels:
+    app: otel-collector
+spec:
+  selector: {app: otel-collector}
+  ports:
+    - {name: otlp-grpc, port: 4317}
+    - {name: otlp-http, port: 4318}
+    - {name: prom-metrics, port: 8889}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: otel-collector
+  namespace: observability
+spec:
+  selector:
+    matchLabels:
+      app: otel-collector
+  endpoints:
+    - port: prom-metrics
+      interval: 15s
+# Afterwards: kubectl -n observability rollout restart deploy otel-collector  (the ConfigMap is not reloaded live)
+# Adding containerPort 8889 is cleaner but not required (the service routes to the pod IP).
+# Metric name (depends on the collector version): traces_span_metrics_calls_total or calls_total
+#   sum by (service_name) (rate(traces_span_metrics_calls_total[5m]))
+# Validate the config: otelcol-contrib validate --config=config.yaml

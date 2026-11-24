@@ -10,8 +10,8 @@ kind: Namespace
 metadata:
   name: legacy
 ---
-# httpbin + sleep werden für beide Namespaces gebraucht – hier für shop, für legacy
-# dieselben Objekte mit namespace: legacy anlegen (oder: kubectl apply -n legacy -f <ohne namespace>)
+# httpbin + sleep are needed in both namespaces – here for shop; for legacy
+# create the same objects with namespace: legacy (or: kubectl apply -n legacy -f <without namespace>)
 apiVersion: v1
 kind: ServiceAccount
 metadata: {name: httpbin, namespace: shop}
@@ -55,7 +55,7 @@ spec:
           image: curlimages/curl
           command: ["sleep", "infinity"]
 ---
-# 5.1 STRICT mTLS im Namespace shop
+# 5.1 STRICT mTLS in namespace shop
 apiVersion: security.istio.io/v1
 kind: PeerAuthentication
 metadata:
@@ -65,7 +65,7 @@ spec:
   mtls:
     mode: STRICT
 ---
-# 5.2 deny-all: leere Spec = keine Regel passt = alles verweigert
+# 5.2 deny-all: empty spec = no rule matches = everything denied
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
@@ -86,15 +86,15 @@ spec:
   rules:
     - from:
         - source:
-            principals: ["cluster.local/ns/shop/sa/sleep"]   # SPIFFE-ID, erfordert mTLS
+            principals: ["cluster.local/ns/shop/sa/sleep"]   # SPIFFE ID, requires mTLS
       to:
         - operation:
             methods: ["GET"]
             paths: ["/get", "/headers"]
 # Tests:
 #   kubectl -n legacy exec deploy/sleep -- curl -s -o /dev/null -w '%{http_code}\n' http://httpbin.shop/get
-#     → 000 / "Connection reset by peer" (kein mTLS-Client)
+#     → 000 / "Connection reset by peer" (no mTLS client)
 #   kubectl -n shop exec deploy/sleep -c sleep -- curl -s -o /dev/null -w '%{http_code}\n' http://httpbin.shop/get   → 200
 #   kubectl -n shop exec deploy/sleep -c sleep -- curl -s -o /dev/null -w '%{http_code}\n' -X POST http://httpbin.shop/post → 403
 # Debug: istioctl x describe pod <pod> -n shop ; istioctl proxy-config ... ; istioctl analyze -n shop
-# Mesh-weit: PeerAuthentication "default" im Namespace istio-system.
+# Mesh-wide: PeerAuthentication "default" in namespace istio-system.

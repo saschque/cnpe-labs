@@ -1,4 +1,4 @@
-# Imperativ:
+# Imperative:
 #   kubectl create ns secure-apps
 #   kubectl label ns secure-apps pod-security.kubernetes.io/enforce=baseline \
 #     pod-security.kubernetes.io/enforce-version=latest \
@@ -15,7 +15,7 @@ metadata:
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/audit-version: latest
 ---
-# Pod, der "restricted" erfüllt
+# pod that complies with "restricted"
 apiVersion: v1
 kind: Pod
 metadata:
@@ -36,7 +36,7 @@ spec:
         readOnlyRootFilesystem: true
         capabilities:
           drop: ["ALL"]
-# Test (muss scheitern):
+# Test (must fail):
 #   kubectl -n secure-apps run priv --image=nginx --overrides='{"spec":{"containers":[{"name":"priv","image":"nginx","securityContext":{"privileged":true}}]}}'
 #   → violates PodSecurity "baseline:latest": privileged
-# Achtung: Istio-Sidecars (istio-init braucht NET_ADMIN) verletzen baseline → Istio CNI nutzen.
+# Watch out: Istio sidecars (istio-init needs NET_ADMIN) violate baseline → use the Istio CNI.

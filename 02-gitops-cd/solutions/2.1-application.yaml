@@ -4,7 +4,7 @@ metadata:
   name: guestbook
   namespace: argocd
   finalizers:
-    - resources-finalizer.argocd.argoproj.io   # Ressourcen beim Löschen der App mitlöschen
+    - resources-finalizer.argocd.argoproj.io   # delete the resources together with the app
 spec:
   project: default
   source:
@@ -20,7 +20,7 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-# CLI-Alternative:
+# CLI alternative:
 #   argocd app create guestbook --repo https://github.com/argoproj/argocd-example-apps \
 #     --path guestbook --dest-server https://kubernetes.default.svc --dest-namespace guestbook \
 #     --sync-policy automated --auto-prune --self-heal --sync-option CreateNamespace=true

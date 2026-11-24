@@ -3,9 +3,9 @@ kind: Namespace
 metadata:
   name: mesh-demo
   annotations:
-    linkerd.io/inject: enabled          # Linkerd nutzt eine ANNOTATION, Istio ein Label
+    linkerd.io/inject: enabled          # Linkerd uses an ANNOTATION, Istio a label
 ---
-# backend mit Label app=backend, Port 80 und ServiceAccount "backend" wird vorausgesetzt.
+# assumes a backend with label app=backend, port 80 and ServiceAccount "backend".
 apiVersion: policy.linkerd.io/v1beta3
 kind: Server
 metadata:
@@ -42,9 +42,9 @@ spec:
     - group: policy.linkerd.io
       kind: MeshTLSAuthentication
       name: frontend-only
-# Bestehende Pods neu starten, damit der Proxy injiziert wird:
+# Restart existing pods so the proxy gets injected:
 #   kubectl -n mesh-demo rollout restart deploy
-# mTLS prüfen:  linkerd check --proxy -n mesh-demo ; linkerd viz edges deploy -n mesh-demo
-# Default-Policy (ohne Server): all-unauthenticated – per Annotation
-#   config.linkerd.io/default-inbound-policy: deny  am Namespace verschärfen.
-# API-Versionen variieren je Linkerd-Release → kubectl api-resources --api-group=policy.linkerd.io
+# Check mTLS:  linkerd check --proxy -n mesh-demo ; linkerd viz edges deploy -n mesh-demo
+# Default policy (without a Server): all-unauthenticated – tighten it with the annotation
+#   config.linkerd.io/default-inbound-policy: deny  on the namespace.
+# API versions vary per Linkerd release → kubectl api-resources --api-group=policy.linkerd.io

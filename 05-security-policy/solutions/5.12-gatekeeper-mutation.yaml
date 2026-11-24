@@ -1,0 +1,61 @@
+apiVersion: mutations.gatekeeper.sh/v1
+kind: Assign
+metadata:
+  name: always-pull
+spec:
+  applyTo:
+    - groups: [""]
+      kinds: ["Pod"]
+      versions: ["v1"]
+  match:
+    scope: Namespaced
+    kinds:
+      - apiGroups: ["*"]
+        kinds: ["Pod"]
+    namespaces: ["shop"]
+  location: "spec.containers[name:*].imagePullPolicy"
+  parameters:
+    assign:
+      value: Always
+---
+apiVersion: mutations.gatekeeper.sh/v1
+kind: AssignMetadata
+metadata:
+  name: owner-label
+spec:
+  match:
+    scope: Namespaced
+    kinds:
+      - apiGroups: ["*"]
+        kinds: ["Pod"]
+    namespaces: ["shop"]
+  location: "metadata.labels.owner"     # AssignMetadata only adds, never overwrites
+  parameters:
+    assign:
+      value: platform
+# Check:
+#   kubectl -n shop run mut-test --image=nginx:1.27 --dry-run=server -o yaml | grep -E 'imagePullPolicy|owner'
+# Mutation status: kubectl get assign,assignmetadata
+#
+# gator (offline, without a cluster):
+#   mkdir -p /tmp/gator && cd /tmp/gator
+#   # store the template + constraint from 5.7 as template.yaml / constraint.yaml, plus:
+#   cat > ns-bad.yaml <<'EOF'
+#   apiVersion: v1
+#   kind: Namespace
+#   metadata: {name: no-owner}
+#   EOF
+#   gator test -f template.yaml -f constraint.yaml -f ns-bad.yaml    # → violation "Missing labels"
+#   (gator test evaluates constraints regardless of enforcementAction.)
+#
+# Suite for CI (gator verify suite.yaml):
+#   kind: Suite
+#   apiVersion: test.gatekeeper.sh/v1alpha1
+#   tests:
+#     - name: required-labels
+#       template: template.yaml
+#       constraint: constraint.yaml
+#       cases:
+#         - name: missing-owner
+#           object: ns-bad.yaml
+#           assertions: [{violations: yes}]

@@ -1,0 +1,36 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: pss-restricted
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: restricted
+      match:
+        any:
+          - resources:
+              kinds: ["Pod"]
+              namespaceSelector:
+                matchLabels:
+                  security: strict
+      validate:
+        podSecurity:
+          level: restricted
+          version: latest
+          exclude:
+            - controlName: "Running as Non-root"
+              images:
+                - "ghcr.io/my-org/legacy-*"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: strict-apps
+  labels:
+    security: strict
+# Test:
+#   kubectl -n strict-apps run web --image=nginx:1.27 --dry-run=server
+#   → rejected: allowPrivilegeEscalation != false, unrestricted capabilities, runAsNonRoot != true, seccompProfile …
+# Advantages over PSA: fine-grained exceptions (per image/control), audit reports (PolicyReport),
+# selection by label instead of only by namespace, mutation possible (e.g. set seccompProfile automatically).

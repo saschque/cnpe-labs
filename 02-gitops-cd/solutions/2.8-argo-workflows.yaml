@@ -4,7 +4,7 @@ metadata:
   name: platform-dag
   namespace: argo
 spec:
-  serviceAccountName: argo-workflow     # vom Helm-Chart (workflow.serviceAccount.create=true)
+  serviceAccountName: argo-workflow     # from the Helm chart (workflow.serviceAccount.create=true)
   entrypoint: main
   templates:
     - name: main
@@ -59,7 +59,7 @@ metadata:
   name: nightly-cleanup
   namespace: argo
 spec:
-  schedules: ["0 2 * * *"]       # ältere Versionen: schedule: "0 2 * * *"
+  schedules: ["0 2 * * *"]       # older versions: schedule: "0 2 * * *"
   timezone: Europe/Berlin
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
@@ -76,4 +76,4 @@ spec:
 # Start:  argo submit -n argo --from workflowtemplate/platform-dag --watch
 #         argo list -n argo ; argo logs -n argo @latest
 #         argo cron list -n argo
-# Ohne CLI: Workflow mit spec.workflowTemplateRef.name: platform-dag per kubectl create anlegen.
+# Without the CLI: create a Workflow with spec.workflowTemplateRef.name: platform-dag via kubectl create.

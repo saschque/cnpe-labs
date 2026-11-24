@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installiert die CNPE-Tools per Helm. Nutzung:
+# Installs the CNPE tools via Helm. Usage:
 #   ./setup/install.sh argocd flux kyverno
 #   ./setup/install.sh all
 set -euo pipefail
@@ -11,7 +11,7 @@ install_argocd() {
   helm repo update argo
   helm upgrade --install argocd argo/argo-cd -n argocd --create-namespace \
     --set configs.params."server\.insecure"=true --wait
-  echo "Argo CD Admin-Passwort:"
+  echo "Argo CD admin password:"
   kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d; echo
 }
 
@@ -58,7 +58,7 @@ install_gatekeeper() {
 install_prometheus() {
   helm_repo prometheus-community https://prometheus-community.github.io/helm-charts
   helm repo update prometheus-community
-  # Sidecar sucht Dashboards in allen Namespaces mit Label grafana_dashboard=1
+  # the sidecar picks up dashboards in all namespaces with label grafana_dashboard=1
   helm upgrade --install kps prometheus-community/kube-prometheus-stack \
     -n monitoring --create-namespace \
     --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \
@@ -84,7 +84,7 @@ install_istio() {
 }
 
 install_linkerd() {
-  command -v linkerd >/dev/null || { echo "linkerd CLI fehlt (https://linkerd.io/2/getting-started/)"; return 1; }
+  command -v linkerd >/dev/null || { echo "linkerd CLI missing (https://linkerd.io/2/getting-started/)"; return 1; }
   linkerd install --crds | kubectl apply -f -
   linkerd install | kubectl apply -f -
   linkerd check
@@ -103,7 +103,7 @@ install_jaeger_otel() {
   helm_repo open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
   helm repo update open-telemetry
   kubectl create namespace observability --dry-run=client -o yaml | kubectl apply -f -
-  # Jaeger v2 (All-in-one, nimmt OTLP direkt an)
+  # Jaeger v2 (all-in-one, accepts OTLP directly)
   kubectl -n observability apply -f - <<'EOF'
 apiVersion: apps/v1
 kind: Deployment
@@ -128,17 +128,17 @@ spec:
     - {name: otlp-grpc, port: 4317}
     - {name: otlp-http, port: 4318}
 EOF
-  echo "OTel Collector wird in Aufgabe 4.5 selbst installiert."
+  echo "You install the OTel Collector yourself in task 4.5."
 }
 
 ALL=(argocd argo_workflows flux tekton crossplane kyverno gatekeeper prometheus opencost istio flagger jaeger_otel)
 
-[[ $# -eq 0 ]] && { echo "Nutzung: $0 <tool...>|all   Tools: ${ALL[*]} linkerd"; exit 1; }
+[[ $# -eq 0 ]] && { echo "Usage: $0 <tool...>|all   Tools: ${ALL[*]} linkerd"; exit 1; }
 [[ "$1" == "all" ]] && set -- "${ALL[@]}"
 
 for tool in "$@"; do
   tool="${tool//-/_}"
-  echo "==> Installiere $tool"
+  echo "==> Installing $tool"
   "install_$tool"
 done
-echo "✅ Fertig."
+echo "✅ Done."

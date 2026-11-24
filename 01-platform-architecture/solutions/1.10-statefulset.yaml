@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kv
+  namespace: data
+spec:
+  clusterIP: None              # headless: DNS returns the pod IPs, stable names kv-0.kv …
+  selector: {app: kv}
+  ports:
+    - name: redis
+      port: 6379
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kv
+  namespace: data
+spec:
+  serviceName: kv              # MUST point to the headless service
+  replicas: 3
+  selector:
+    matchLabels: {app: kv}
+  persistentVolumeClaimRetentionPolicy:
+    whenScaled: Retain         # default: PVCs are kept when scaling down
+    whenDeleted: Retain
+  template:
+    metadata:
+      labels: {app: kv}
+    spec:
+      containers:
+        - name: redis
+          image: redis:7
+          ports:
+            - containerPort: 6379
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: standard
+        resources:
+          requests:
+            storage: 256Mi
+# Check:
+#   kubectl -n data get pvc               # data-kv-0, data-kv-1, data-kv-2 → Bound
+#   kubectl -n data run dns --rm -it --image=busybox:1.36 -- nslookup kv-0.kv.data.svc.cluster.local
+#   kubectl -n data scale sts kv --replicas=1 ; kubectl -n data get pvc   → all 3 PVCs still exist
+# With whenScaled: Delete, data-kv-1/2 would be deleted when scaling down.

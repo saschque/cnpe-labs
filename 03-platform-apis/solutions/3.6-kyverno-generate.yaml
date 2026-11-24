@@ -1,6 +1,6 @@
-# Kyverno braucht Rechte, um RoleBindings/Quotas/NetworkPolicies zu erzeugen.
-# Neuere Kyverno-Versionen haben ResourceQuota/NetworkPolicy oft schon; RoleBinding mit
-# ClusterRole "edit" erfordert, dass Kyverno selbst diese Rechte besitzt (Eskalationsschutz).
+# Kyverno needs permissions to create RoleBindings/quotas/NetworkPolicies.
+# Newer Kyverno versions often already have ResourceQuota/NetworkPolicy; a RoleBinding with
+# ClusterRole "edit" requires that Kyverno itself holds those permissions (escalation protection).
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -97,6 +97,6 @@ spec:
 # Test:
 #   kubectl create ns demo-tenant
 #   kubectl label ns demo-tenant platform.example.org/tenant=true team=blue
-#   (Label-Änderung = UPDATE; generate greift standardmäßig bei CREATE und UPDATE)
+#   (a label change = UPDATE; generate triggers on CREATE and UPDATE by default)
 #   kubectl -n demo-tenant get resourcequota,networkpolicy,rolebinding
-#   kubectl get updaterequests -n kyverno     # bei Problemen
+#   kubectl get updaterequests -n kyverno     # when things go wrong

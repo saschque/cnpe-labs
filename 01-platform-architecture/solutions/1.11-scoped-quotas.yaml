@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: critical-quota
+  namespace: team-payments
+spec:
+  hard:
+    pods: "4"
+  scopeSelector:
+    matchExpressions:
+      - scopeName: PriorityClass
+        operator: In
+        values: ["platform-critical"]
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: no-besteffort
+  namespace: team-payments
+spec:
+  hard:
+    pods: "0"
+  scopes: ["BestEffort"]
+# Question 3: The LimitRange sets default requests and limits for every container without settings.
+# So every pod has requests → QoS class Burstable/Guaranteed, never BestEffort.
+# The no-besteffort quota is a second line of defense (e.g. if the LimitRange gets deleted).
+#
+# Watch out: the checkout Deployment from 1.3 uses platform-critical. With maxReplicas 8 in the HPA
+# there can now only be 4 pods – the remaining ReplicaSet pods fail with "exceeded quota".
+# This kind of thing is a popular troubleshooting task in the exam.

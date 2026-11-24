@@ -1,0 +1,62 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: echo
+  namespace: ci
+spec:
+  params:
+    - name: msg
+      type: string
+  steps:
+    - name: echo
+      image: alpine
+      script: |
+        echo "$(params.msg)"
+---
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: release-gate
+  namespace: ci
+spec:
+  params:
+    - name: environment
+      type: string
+  tasks:
+    - name: build
+      taskRef: {name: echo}
+      params: [{name: msg, value: building}]
+    - name: approve-prod
+      runAfter: [build]
+      when:
+        - input: "$(params.environment)"
+          operator: in
+          values: ["prod"]
+      taskRef: {name: echo}
+      params: [{name: msg, value: "approval for prod"}]
+    - name: deploy
+      runAfter: [approve-prod]       # still runs, because when only skips the task itself
+      taskRef: {name: echo}
+      params: [{name: msg, value: "deploying to $(params.environment)"}]
+  finally:
+    - name: notify
+      taskRef: {name: echo}
+      params: [{name: msg, value: "Pipeline-Status: $(tasks.status)"}]
+---
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: release-gate-
+  namespace: ci
+spec:
+  pipelineRef: {name: release-gate}
+  params:
+    - name: environment
+      value: dev
+# kubectl create -f 2.13-tekton-when-finally.yaml   (create because of generateName)
+# Check:
+#   kubectl -n ci get pipelinerun -l tekton.dev/pipeline=release-gate \
+#     -o jsonpath='{.items[0].status.skippedTasks}' | jq
+#   → [{"name":"approve-prod","reason":"When Expressions evaluated to false", ...}]
+# Note: Since Tekton v0.27, when expressions only apply to the task itself by default (they
+# do not block dependent tasks as long as those don't use results of the skipped task).

@@ -14,7 +14,7 @@ rules:
     resources: ["deployments"]
     verbs: ["get", "list", "patch", "update"]
 ---
-# ClusterRole + RoleBinding = Rechte nur in diesem Namespace (wiederverwendbar!)
+# ClusterRole + RoleBinding = permissions only in this namespace (reusable!)
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
@@ -64,7 +64,7 @@ subjects:
   - kind: ServiceAccount
     name: deployer
     namespace: ci
-# Imperativ:
+# Imperative:
 #   kubectl -n ci create sa deployer
 #   kubectl create clusterrole deployment-updater --verb=get,list,patch,update --resource=deployments.apps
 #   kubectl -n gb-dev create rolebinding deployer --clusterrole=deployment-updater --serviceaccount=ci:deployer
@@ -77,5 +77,5 @@ subjects:
 #   kubectl auth can-i delete deploy -n gb-dev --as=$SA     # no
 #   kubectl auth can-i patch deploy -n gb-prod --as=$SA     # no
 #   kubectl auth can-i list ns --as=$SA                     # yes
-# Token (10 Min.):
+# Token (10 min):
 #   kubectl -n ci create token deployer --duration=10m

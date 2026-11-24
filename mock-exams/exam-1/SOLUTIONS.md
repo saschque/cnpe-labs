@@ -1,8 +1,8 @@
-# Mock Exam – Lösungen
+# Mock Exam 1 – Solutions
 
-> Erst nach Ablauf der 120 Minuten lesen!
+> Only read after the 120 minutes are up!
 
-### 1 – Mandanten-Quota
+### 1 – Tenant quota
 ```bash
 kubectl -n mx-team-red create quota red-quota --hard=requests.cpu=3,requests.memory=6Gi,pods=15
 kubectl apply -f - <<'EOF'
@@ -47,9 +47,9 @@ spec:
       ports:
         - {protocol: TCP, port: 5432}
 ```
-Sobald eine Policy `app=db` mit `policyTypes: [Ingress]` auswählt, ist alles andere verboten.
+As soon as a policy selects `app=db` with `policyTypes: [Ingress]`, everything else is forbidden.
 
-### 4 – Argo CD mit Kustomize-Option
+### 4 – Argo CD with a Kustomize option
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -69,8 +69,8 @@ spec:
 ```
 
 ### 5 – Argo CD Troubleshooting
-Zwei Fehler: `targetRevision: mainn` (Branch existiert nicht; das Repo nutzt `master`) und
-`valueFiles: values-prod.yaml` (Datei existiert nicht, richtig: `values-production.yaml`).
+Two errors: `targetRevision: mainn` (the branch does not exist; the repo uses `master`) and
+`valueFiles: values-prod.yaml` (the file does not exist; correct: `values-production.yaml`).
 ```bash
 kubectl -n argocd get application mx-broken -o jsonpath='{.status.conditions}' | jq
 kubectl -n argocd patch application mx-broken --type=merge -p '
@@ -88,7 +88,7 @@ flux create source helm mx-podinfo --url=oci://ghcr.io/stefanprodan/charts -n fl
 flux create helmrelease mx-podinfo -n mx-flux --source=HelmRepository/mx-podinfo.flux-system \
   --chart=podinfo --interval=2m --values=<(echo 'replicaCount: 3')
 ```
-(`flux create source helm` erkennt `oci://` automatisch als Typ OCI.) Oder YAML wie in Lösung 2.5.
+(`flux create source helm` automatically detects `oci://` as type OCI.) Or YAML as in solution 2.5.
 
 ### 7 – Argo Workflows
 ```yaml
@@ -120,7 +120,7 @@ spec:
 argo submit -n argo --from workflowtemplate/mx-pipeline -p env=staging --watch
 ```
 
-### 8 – Tekton mit Results
+### 8 – Tekton with results
 ```yaml
 apiVersion: tekton.dev/v1
 kind: Task
@@ -132,7 +132,7 @@ spec:
     - name: hello
       image: alpine
       script: |
-        echo -n "Hallo $(params.name)" > $(results.greeting.path)
+        echo -n "Hello $(params.name)" > $(results.greeting.path)
 ---
 apiVersion: tekton.dev/v1
 kind: Task
@@ -155,7 +155,7 @@ spec:
       params: [{name: name, value: $(params.name)}]
     - name: print
       taskRef: {name: mx-print}
-      params: [{name: text, value: $(tasks.hello.results.greeting)}]   # implizite Abhängigkeit
+      params: [{name: text, value: $(tasks.hello.results.greeting)}]   # implicit dependency
 ```
 ```bash
 tkn pipeline start mx-greet -n ci -p name=Sascha --showlog
@@ -231,7 +231,7 @@ kind: Bucket
 metadata: {name: logs, namespace: mx-team-red}
 spec: {sizeGB: 50}
 ```
-Der `convert`-Transform ist der Knackpunkt: ConfigMap-Daten müssen Strings sein.
+The `convert` transform is the crux: ConfigMap data must be strings.
 
 ### 11 – Kyverno generate
 ```yaml
@@ -271,18 +271,18 @@ spec:
           for: 10m
           labels: {severity: warning}
           annotations:
-            summary: "{{ $labels.namespace }}/{{ $labels.deployment }}: Replicas weichen ab"
+            summary: "{{ $labels.namespace }}/{{ $labels.deployment }}: replicas do not match"
 ```
 
 ### 13 – Incident
-1. `CreateContainerConfigError`: Deployment referenziert ConfigMap `checkout-cfg`, sie heißt `checkout-config`.
-2. Service-Selector `version: v1`, Pods haben `version: v2` → keine Endpoints.
+1. `CreateContainerConfigError`: the Deployment references the ConfigMap `checkout-cfg`, but it is called `checkout-config`.
+2. Service selector `version: v1`, but the pods have `version: v2` → no endpoints.
 ```bash
 kubectl -n mx-incident patch deploy checkout --type=json \
   -p='[{"op":"replace","path":"/spec/template/spec/containers/0/envFrom/0/configMapRef/name","value":"checkout-config"}]'
 kubectl -n mx-incident patch svc checkout --type=json \
   -p='[{"op":"remove","path":"/spec/selector/version"}]'
-printf 'ConfigMap-Name falsch (checkout-cfg statt checkout-config)\nService-Selector version=v1 passt nicht zu Pods (v2)\n' > /tmp/mx-incident.txt
+printf 'wrong ConfigMap name (checkout-cfg instead of checkout-config)\nservice selector version=v1 does not match the pods (v2)\n' > /tmp/mx-incident.txt
 ```
 
 ### 14 – Query
@@ -298,7 +298,7 @@ kubectl create clusterrolebinding mx-auditor --clusterrole=mx-auditor --servicea
 kubectl auth can-i list secrets -A --as=system:serviceaccount:mx-team-red:mx-auditor   # no
 ```
 
-### 16 – Kyverno Memory-Limit
+### 16 – Kyverno memory limit
 ```yaml
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
@@ -313,7 +313,7 @@ spec:
               kinds: [Pod]
               namespaces: [mx-team-red]
       validate:
-        message: "Jeder Container braucht ein Memory-Limit."
+        message: "Every container needs a memory limit."
         pattern:
           spec:
             containers:
@@ -326,7 +326,7 @@ spec:
 ```bash
 kubectl label ns mx-team-red pod-security.kubernetes.io/enforce=restricted --overwrite
 ```
-nginx läuft als root → Image auf eine unprivilegierte Variante umstellen und securityContext setzen:
+nginx runs as root → switch the image to an unprivileged variant and set the securityContext:
 ```bash
 kubectl -n mx-team-red patch deploy api --type=strategic -p '
 spec:
@@ -344,6 +344,6 @@ spec:
             capabilities: {drop: ["ALL"]}'
 kubectl -n mx-team-red rollout status deploy api
 ```
-Das Memory-Limit (Aufgabe 16) ist bereits vorhanden. Das Deployment `db` würde neue Pods
-ebenfalls nicht mehr erzeugen dürfen – laufende Pods bleiben aber bestehen (PSA prüft nur bei
-der Erstellung). `kubectl label --dry-run=server` zeigt solche Warnungen vorab an.
+The memory limit (task 16) is already there. The Deployment `db` would no longer be allowed
+to create new pods either – but running pods stay (PSA only checks at creation
+time). `kubectl label --dry-run=server` shows such warnings in advance.

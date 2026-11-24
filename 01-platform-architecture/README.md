@@ -1,42 +1,41 @@
 # Domain 1 – Platform Architecture and Infrastructure (15 %)
 
-Kompetenzen laut Curriculum:
-- Best Practices für Networking, Storage und Compute anwenden
-- Cost-Management-Lösungen für Right-Sizing und Scaling nutzen
-- Multi-Tenancy-Ressourcennutzung optimieren
+Competencies from the curriculum:
+- Applying platform architecture best practices for networking, storage, and compute
+- Using cost management solutions for right-sizing and scaling
+- Optimizing multi-tenancy resource usage
 
-Benötigte Tools: `./setup/install.sh prometheus opencost` (nur für 1.6)
+Tools needed: `./setup/install.sh prometheus opencost` (only for 1.6)
 
 ---
 
-## Aufgabe 1.1 – Mandanten-Namespace mit Quota ⏱ 6 Min.
+## Task 1.1 – Tenant namespace with quota ⏱ 6 min
 
-Das Team **payments** bekommt einen eigenen Namespace.
+The **payments** team gets its own namespace.
 
-1. Erstelle den Namespace `team-payments` mit den Labels `team=payments` und `tier=prod`.
-2. Erstelle eine `ResourceQuota` namens `payments-quota`:
+1. Create the namespace `team-payments` with the labels `team=payments` and `tier=prod`.
+2. Create a `ResourceQuota` named `payments-quota`:
    - `requests.cpu: 4`, `requests.memory: 8Gi`
    - `limits.cpu: 8`, `limits.memory: 16Gi`
-   - max. `20` Pods, max. `5` PersistentVolumeClaims, max. `0` Services vom Typ LoadBalancer
-3. Erstelle eine `LimitRange` namens `payments-defaults`, damit Container ohne Angaben
-   automatisch `100m`/`128Mi` Requests und `500m`/`512Mi` Limits erhalten. Ein Container
-   darf maximal `2` CPU und `2Gi` Memory als Limit anfordern.
+   - max. `20` pods, max. `5` PersistentVolumeClaims, max. `0` services of type LoadBalancer
+3. Create a `LimitRange` named `payments-defaults` so that containers without settings
+   automatically get `100m`/`128Mi` requests and `500m`/`512Mi` limits. A container may request
+   at most `2` CPU and `2Gi` memory as a limit.
 
-**Prüfkriterium:** Ein Pod ohne `resources` lässt sich starten und hat danach die Defaults gesetzt.
+**Check:** A pod without `resources` starts and has the defaults applied afterwards.
 
 ---
 
-## Aufgabe 1.2 – Horizontal Pod Autoscaler ⏱ 5 Min.
+## Task 1.2 – Horizontal Pod Autoscaler ⏱ 5 min
 
-1. Erstelle im Namespace `team-payments` ein Deployment `checkout` (Image
-   `registry.k8s.io/hpa-example`, 1 Replica, Request `cpu: 200m`, Port 80) und einen
-   ClusterIP-Service `checkout` auf Port 80.
-2. Erstelle einen HPA (`autoscaling/v2`) `checkout`: min. 2, max. 8 Replicas,
-   Ziel-CPU-Auslastung 60 %.
-3. Konfiguriere das Scale-Down-Verhalten: Stabilisierungsfenster 120 s, maximal
-   1 Pod pro 60 s entfernen.
+1. In namespace `team-payments`, create a Deployment `checkout` (image
+   `registry.k8s.io/hpa-example`, 1 replica, request `cpu: 200m`, port 80) and a ClusterIP
+   service `checkout` on port 80.
+2. Create an HPA (`autoscaling/v2`) `checkout`: min. 2, max. 8 replicas, target CPU
+   utilization 60 %.
+3. Configure the scale-down behavior: stabilization window 120 s, remove at most 1 pod per 60 s.
 
-**Bonus:** Erzeuge Last und beobachte das Scaling:
+**Bonus:** Generate load and watch the scaling:
 ```bash
 kubectl -n team-payments run load --rm -it --image=busybox -- \
   sh -c 'while true; do wget -q -O- http://checkout; done'
@@ -44,86 +43,133 @@ kubectl -n team-payments run load --rm -it --image=busybox -- \
 
 ---
 
-## Aufgabe 1.3 – Verfügbarkeit: PriorityClass & PodDisruptionBudget ⏱ 5 Min.
+## Task 1.3 – Availability: PriorityClass & PodDisruptionBudget ⏱ 5 min
 
-1. Erstelle eine `PriorityClass` `platform-critical` mit Wert `1000000`, nicht global default,
-   Beschreibung „Kritische Plattform-Komponenten“.
-2. Patche das Deployment `checkout` so, dass es diese PriorityClass verwendet.
-3. Erstelle ein `PodDisruptionBudget` `checkout-pdb`, das sicherstellt, dass immer
-   mindestens 1 Pod von `checkout` verfügbar bleibt.
-4. Verteile die `checkout`-Pods mit `topologySpreadConstraints` gleichmäßig über Nodes
+1. Create a `PriorityClass` `platform-critical` with value `1000000`, not the global default,
+   description "Critical platform components".
+2. Patch the Deployment `checkout` to use this PriorityClass.
+3. Create a `PodDisruptionBudget` `checkout-pdb` that ensures at least 1 `checkout` pod always
+   stays available.
+4. Spread the `checkout` pods evenly across nodes with `topologySpreadConstraints`
    (`maxSkew: 1`, `whenUnsatisfiable: ScheduleAnyway`).
 
 ---
 
-## Aufgabe 1.4 – Netzwerk-Isolation zwischen Mandanten ⏱ 7 Min.
+## Task 1.4 – Network isolation between tenants ⏱ 7 min
 
-1. Erstelle im Namespace `team-payments` eine NetworkPolicy `default-deny`, die
-   **jeglichen** Ingress- und Egress-Traffic blockiert.
-2. Erstelle eine NetworkPolicy `allow-dns`, die Egress zu CoreDNS (Namespace
-   `kube-system`, Label `k8s-app=kube-dns`, UDP/TCP 53) erlaubt.
-3. Erstelle eine NetworkPolicy `allow-from-frontend`, die Ingress zu Pods mit
-   `app=checkout` auf Port 80 nur aus Namespaces mit dem Label `team=frontend` erlaubt.
-4. Erlaube außerdem Ingress innerhalb des Namespaces (Pod-zu-Pod) – `allow-same-namespace`.
+1. In namespace `team-payments`, create a NetworkPolicy `default-deny` that blocks **all**
+   ingress and egress traffic.
+2. Create a NetworkPolicy `allow-dns` that allows egress to CoreDNS (namespace `kube-system`,
+   label `k8s-app=kube-dns`, UDP/TCP 53).
+3. Create a NetworkPolicy `allow-from-frontend` that allows ingress to pods with
+   `app=checkout` on port 80 only from namespaces with the label `team=frontend`.
+4. Also allow ingress within the namespace (pod-to-pod) – `allow-same-namespace`.
 
-> Hinweis: kind's Standard-CNI (kindnet) unterstützt NetworkPolicies ab v0.24. Bei älteren
-> Versionen Calico installieren, sonst haben die Policies keinen Effekt.
-
----
-
-## Aufgabe 1.5 – Storage ⏱ 5 Min.
-
-1. Erstelle eine StorageClass `fast-retain` mit dem Provisioner des Clusters
-   (in kind: `rancher.io/local-path`), `reclaimPolicy: Retain`,
-   `volumeBindingMode: WaitForFirstConsumer` und `allowVolumeExpansion: true`.
-2. Erstelle im Namespace `team-payments` einen PVC `ledger-data` (1Gi, `ReadWriteOnce`)
-   mit dieser StorageClass.
-3. Erkläre (für dich), warum der PVC im Status `Pending` bleibt, bis ein Pod ihn nutzt.
-   Erstelle dann einen Pod `ledger`, der den PVC unter `/data` mountet.
+> Note: kind's default CNI (kindnet) supports NetworkPolicies from v0.24. With older versions,
+> install Calico, otherwise the policies have no effect.
 
 ---
 
-## Aufgabe 1.6 – Kosten mit OpenCost ⏱ 8 Min.
+## Task 1.5 – Storage ⏱ 5 min
 
-1. Stelle sicher, dass OpenCost läuft (`./setup/install.sh prometheus opencost`).
-2. Ermittle über die OpenCost-API die Kosten der letzten 24 h, **aggregiert pro Namespace**,
-   und speichere die Ausgabe in `/tmp/cost-by-namespace.json`.
-3. Ermittle den Namespace mit den höchsten Gesamtkosten und schreibe nur dessen Namen nach
+1. Create a StorageClass `fast-retain` with the cluster's provisioner (in kind:
+   `rancher.io/local-path`), `reclaimPolicy: Retain`, `volumeBindingMode: WaitForFirstConsumer`
+   and `allowVolumeExpansion: true`.
+2. In namespace `team-payments`, create a PVC `ledger-data` (1Gi, `ReadWriteOnce`) with this
+   StorageClass.
+3. Explain (to yourself) why the PVC stays `Pending` until a pod uses it. Then create a pod
+   `ledger` that mounts the PVC at `/data`.
+
+---
+
+## Task 1.6 – Cost with OpenCost ⏱ 8 min
+
+1. Make sure OpenCost is running (`./setup/install.sh prometheus opencost`).
+2. Use the OpenCost API to get the cost of the last 24 h, **aggregated per namespace**, and
+   save the output to `/tmp/cost-by-namespace.json`.
+3. Find the namespace with the highest total cost and write only its name to
    `/tmp/top-namespace.txt`.
-4. Bonus: Aggregiere stattdessen nach Label `team`.
+4. Bonus: aggregate by the label `team` instead.
 
 ---
 
-## Aufgabe 1.7 – Right-Sizing ⏱ 6 Min.
+## Task 1.7 – Right-sizing ⏱ 6 min
 
-Im Namespace `rightsizing` läuft ein überdimensioniertes Deployment:
+An oversized Deployment runs in namespace `rightsizing`:
 ```bash
 kubectl apply -f 01-platform-architecture/solutions/rightsizing-setup.yaml
 ```
-1. Ermittle mit `kubectl top pod` den tatsächlichen Verbrauch der Pods von `oversized`.
-2. Passe die Requests so an, dass sie ca. dem 1,2-fachen des gemessenen Verbrauchs entsprechen
-   (mindestens `10m` CPU / `16Mi` Memory). Setze das Memory-Limit auf das Doppelte des Requests,
-   **kein** CPU-Limit.
-3. Reduziere die Replicas von 6 auf 2.
+1. Use `kubectl top pod` to find the actual usage of the `oversized` pods.
+2. Adjust the requests to roughly 1.2× the measured usage (at least `10m` CPU / `16Mi` memory).
+   Set the memory limit to twice the request, and **no** CPU limit.
+3. Reduce the replicas from 6 to 2.
 
 ---
 
-## Aufgabe 1.8 – Self-Service-Mandanten mit Kustomize ⏱ 8 Min.
+## Task 1.8 – Self-service tenants with Kustomize ⏱ 8 min
 
-Erstelle unter `/tmp/tenants/` eine Kustomize-Struktur:
+Create a Kustomize structure under `/tmp/tenants/`:
 ```
 /tmp/tenants/
-├── base/          # Namespace, ResourceQuota, LimitRange, default-deny NetworkPolicy, RoleBinding
+├── base/          # ResourceQuota, LimitRange, default-deny NetworkPolicy, RoleBinding
 └── overlays/
-    ├── team-a/    # Namespace team-a, Quota requests.cpu=2
-    └── team-b/    # Namespace team-b, Quota requests.cpu=6
+    ├── team-a/    # namespace team-a, quota requests.cpu=2
+    └── team-b/    # namespace team-b, quota requests.cpu=6
 ```
-- Die RoleBinding gibt der Gruppe `<team>-devs` die ClusterRole `edit` im Namespace.
-- Wende beide Overlays mit `kubectl apply -k` an.
+- The RoleBinding gives the group `<team>-devs` the ClusterRole `edit` in the namespace.
+- Apply both overlays with `kubectl apply -k`.
 
-**Prüfkriterium:** `kubectl auth can-i create deploy -n team-a --as=x --as-group=team-a-devs` → `yes`.
+**Check:** `kubectl auth can-i create deploy -n team-a --as=x --as-group=team-a-devs` → `yes`.
 
 ---
 
-✅ Prüfen: `./01-platform-architecture/verify.sh`
-📖 Lösungen: [`solutions/`](solutions/)
+# More exercises
+
+## Task 1.9 – Dedicated node pool (taints & affinity) ⏱ 6 min
+
+Platform components should run on their own nodes.
+1. Label the node `cnpe-worker2` with `pool=platform` and taint it with
+   `dedicated=platform:NoSchedule`.
+2. In namespace `platform-system`, create a Deployment `platform-agent`
+   (image `registry.k8s.io/pause:3.10`, 2 replicas) that
+   - tolerates the taint and
+   - only runs on nodes with `pool=platform` via **required** node affinity.
+3. Check that both pods run on `cnpe-worker2` and that a normal Deployment does **not** land there.
+
+> Clean up afterwards (otherwise you lose capacity): `kubectl taint node cnpe-worker2 dedicated-`
+
+---
+
+## Task 1.10 – StatefulSet with a headless service ⏱ 7 min
+
+1. In namespace `data`, create a headless service `kv` (port 6379).
+2. Create a StatefulSet `kv` with 3 replicas (image `redis:7`) that uses this service and mounts
+   one volume `data` (256Mi, StorageClass `standard`) per pod at `/data` via `volumeClaimTemplates`.
+3. Check that `kv-0.kv.data.svc.cluster.local` resolves via DNS and that 3 PVCs are bound.
+4. Scale down to 1 replica. What happens to the PVCs? (keyword `persistentVolumeClaimRetentionPolicy`)
+
+---
+
+## Task 1.11 – Scoped quotas ⏱ 5 min
+
+In namespace `team-payments`:
+1. Quota `critical-quota`: at most **4 pods** with the PriorityClass `platform-critical`
+   (`scopeSelector`).
+2. Quota `no-besteffort`: **no** BestEffort pods (pods without requests/limits) allowed.
+3. Explain why the LimitRange from 1.1 normally prevents BestEffort pods in this namespace anyway.
+
+---
+
+## Task 1.12 – Capacity analysis ⏱ 7 min
+
+For every node, calculate the sum of the **CPU requests** of all running pods in millicores and
+write it to `/tmp/node-requests.txt` (format: `<node> <millicores>`, one line per node).
+Also write the namespace with the highest CPU requests to `/tmp/top-requests-ns.txt`.
+
+Tip: `kubectl describe node` shows "Allocated resources" – but in the exam, a reproducible
+`jq` one-liner is faster and less error-prone.
+
+---
+
+✅ Check: `./01-platform-architecture/verify.sh`
+📖 Solutions: [`solutions/`](solutions/)

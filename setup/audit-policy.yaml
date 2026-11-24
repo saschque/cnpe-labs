@@ -2,21 +2,21 @@ apiVersion: audit.k8s.io/v1
 kind: Policy
 omitStages: ["RequestReceived"]
 rules:
-  # Secrets nur mit Metadaten loggen (keine Inhalte!)
+  # log secrets with metadata only (never the content!)
   - level: Metadata
     resources:
       - group: ""
         resources: ["secrets", "configmaps"]
-  # Änderungen an RBAC vollständig loggen
+  # log RBAC changes in full
   - level: RequestResponse
     resources:
       - group: rbac.authorization.k8s.io
-  # Schreibzugriffe auf Workloads
+  # write access to workloads
   - level: Request
     verbs: ["create", "update", "patch", "delete"]
     resources:
       - group: apps
-  # Rauschen reduzieren
+  # reduce noise
   - level: None
     users: ["system:kube-proxy"]
   - level: None

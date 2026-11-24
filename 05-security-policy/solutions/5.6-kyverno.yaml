@@ -3,7 +3,7 @@ kind: ClusterPolicy
 metadata:
   name: require-team-label
 spec:
-  validationFailureAction: Enforce     # neuere Versionen: pro Regel validate.failureAction
+  validationFailureAction: Enforce     # newer versions: validate.failureAction per rule
   background: true
   rules:
     - name: check-team
@@ -16,7 +16,7 @@ spec:
           - resources:
               namespaces: ["kube-system", "argocd", "flux-system"]
       validate:
-        message: "Deployments müssen das Label 'team' haben."
+        message: "Deployments must have the label 'team'."
         pattern:
           metadata:
             labels:
@@ -34,9 +34,9 @@ spec:
       match:
         any:
           - resources:
-              kinds: ["Pod"]           # Kyverno erzeugt Regeln für Deployments etc. automatisch (autogen)
+              kinds: ["Pod"]           # Kyverno generates rules for Deployments etc. automatically (autogen)
       validate:
-        message: "Images brauchen einen Tag."
+        message: "Images need a tag."
         pattern:
           spec:
             containers:
@@ -47,7 +47,7 @@ spec:
           - resources:
               kinds: ["Pod"]
       validate:
-        message: "Der Tag ':latest' ist nicht erlaubt."
+        message: "The tag ':latest' is not allowed."
         pattern:
           spec:
             containers:
@@ -68,10 +68,10 @@ spec:
         patchStrategicMerge:
           spec:
             containers:
-              - (name): "*"            # Anker: für jeden Container
+              - (name): "*"            # anchor: for every container
                 resources:
                   requests:
-                    +(cpu): 100m       # +( ) = nur hinzufügen, wenn nicht vorhanden
+                    +(cpu): 100m       # +( ) = only add if not present
                     +(memory): 128Mi
 ---
 apiVersion: kyverno.io/v1
@@ -88,7 +88,7 @@ spec:
           - resources:
               kinds: ["Deployment"]
       validate:
-        message: "Deployments sollten eine readinessProbe haben."
+        message: "Deployments should have a readinessProbe."
         pattern:
           spec:
             template:
@@ -97,8 +97,8 @@ spec:
                   - readinessProbe:
                       periodSeconds: ">0"
 ---
-# 5.6.6 PolicyException (muss in Kyverno aktiviert sein: --enablePolicyException,
-# Namespace ggf. per --exceptionNamespace eingeschränkt; API-Version je nach Release v2 / v2beta1)
+# 5.6.6 PolicyException (must be enabled in Kyverno: --enablePolicyException,
+# namespace possibly restricted via --exceptionNamespace; API version v2 / v2beta1 depending on the release)
 apiVersion: kyverno.io/v2
 kind: PolicyException
 metadata:
@@ -117,5 +117,5 @@ spec:
 # Reports:
 #   kubectl get policyreport -A
 #   kubectl get policyreport -n <ns> -o jsonpath='{.items[*].results[?(@.result=="fail")]}' | jq
-#   kubectl get clusterpolicy        # READY-Spalte
-# Testen ohne Cluster:  kyverno apply 5.6-kyverno.yaml --resource deployment.yaml
+#   kubectl get clusterpolicy        # READY column
+# Testing without a cluster:  kyverno apply 5.6-kyverno.yaml --resource deployment.yaml

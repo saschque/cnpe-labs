@@ -1,0 +1,33 @@
+apiVersion: networking.istio.io/v1
+kind: Sidecar
+metadata:
+  name: default                 # "default" without workloadSelector = applies to the whole namespace
+  namespace: shop
+spec:
+  outboundTrafficPolicy:
+    mode: REGISTRY_ONLY
+  egress:
+    - hosts:
+        - "./*"                 # services in the same namespace
+        - "istio-system/*"
+---
+apiVersion: networking.istio.io/v1
+kind: ServiceEntry
+metadata:
+  name: httpbin-org
+  namespace: shop
+spec:
+  hosts:
+    - httpbin.org
+  location: MESH_EXTERNAL
+  resolution: DNS
+  ports:
+    - number: 80
+      name: http
+      protocol: HTTP
+# Test:
+#   kubectl -n shop exec deploy/sleep -c sleep -- curl -s -o /dev/null -w '%{http_code}\n' http://httpbin.org/get   → 200
+#   kubectl -n shop exec deploy/sleep -c sleep -- curl -s -o /dev/null -w '%{http_code}\n' http://example.com       → 502
+# Mesh-wide instead of per namespace: meshConfig.outboundTrafficPolicy.mode=REGISTRY_ONLY (istiod Helm values).
+# For central control/auditing of egress: egress gateway + VirtualService.
+# Note: with older Istio versions, use apiVersion networking.istio.io/v1beta1.

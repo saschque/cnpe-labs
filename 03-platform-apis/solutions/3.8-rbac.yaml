@@ -27,10 +27,10 @@ subjects:
   - apiGroup: rbac.authorization.k8s.io
     kind: Group
     name: team-a-devs
-# Imperativ:
+# Imperative:
 #   kubectl -n team-a create role webapp-author --verb=get,list,watch,create,update,patch,delete \
 #     --resource=webapps.platform.example.org
-#   (danach zweite Regel per kubectl edit ergänzen)
+#   (then add the second rule with kubectl edit)
 #   kubectl -n team-a create rolebinding webapp-author --role=webapp-author --group=team-a-devs
 # Test:
 #   kubectl auth can-i create webapps.platform.example.org -n team-a --as=u --as-group=team-a-devs  # yes

@@ -1,4 +1,4 @@
-# SETUP für Aufgabe 1.7 – zuerst anwenden
+# SETUP for task 1.7 – apply this first
 apiVersion: v1
 kind: Namespace
 metadata:

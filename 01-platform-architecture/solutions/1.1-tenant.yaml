@@ -29,10 +29,10 @@ metadata:
 spec:
   limits:
     - type: Container
-      defaultRequest:      # wird gesetzt, wenn keine Requests angegeben sind
+      defaultRequest:      # applied when no requests are set
         cpu: 100m
         memory: 128Mi
-      default:             # wird gesetzt, wenn keine Limits angegeben sind
+      default:             # applied when no limits are set
         cpu: 500m
         memory: 512Mi
       max:

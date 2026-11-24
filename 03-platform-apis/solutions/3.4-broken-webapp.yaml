@@ -1,4 +1,4 @@
-# SETUP für Aufgabe 3.4 – absichtlich fehlerhaft. Lösung: 3.4-solution.md
+# SETUP for task 3.4 – intentionally broken. Solution: 3.4-solution.md
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:

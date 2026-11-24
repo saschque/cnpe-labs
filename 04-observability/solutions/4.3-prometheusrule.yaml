@@ -3,7 +3,7 @@ kind: PrometheusRule
 metadata:
   name: platform-alerts
   namespace: monitoring
-  # labels: {release: kps}   # falls ruleSelector das verlangt
+  # labels: {release: kps}   # if ruleSelector requires it
 spec:
   groups:
     - name: platform.recording
@@ -18,8 +18,8 @@ spec:
           labels:
             severity: critical
           annotations:
-            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} ist im CrashLoop"
-            description: "Container {{ $labels.container }} wurde {{ $value | humanize }}× in 15 Min. neu gestartet."
+            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash-looping"
+            description: "Container {{ $labels.container }} restarted {{ $value | humanize }} times in 15 min."
         - alert: HighErrorRate
           expr: |
             sum(rate(http_requests_total{namespace="demo", status=~"5.."}[5m]))
@@ -29,10 +29,10 @@ spec:
           labels:
             severity: warning
           annotations:
-            summary: "Hohe Fehlerrate bei podinfo"
-            description: "{{ $value | humanizePercentage }} der Requests liefern 5xx."
+            summary: "High error rate for podinfo"
+            description: "{{ $value | humanizePercentage }} of requests return 5xx."
 ---
-# Bonus: AlertmanagerConfig (CRD des Prometheus Operators)
+# Bonus: AlertmanagerConfig (CRD of the Prometheus Operator)
 apiVersion: monitoring.coreos.com/v1alpha1
 kind: AlertmanagerConfig
 metadata:
@@ -53,6 +53,6 @@ spec:
       webhookConfigs:
         - url: http://alert-sink.monitoring:8080
           sendResolved: true
-# Achtung: Alertmanager muss AlertmanagerConfigs auswählen
-#   (alertmanager.alertmanagerSpec.alertmanagerConfigSelector im Helm-Chart).
-# Regeln validieren: promtool check rules <datei>  (Regeln vorher aus dem CRD extrahieren)
+# Watch out: Alertmanager must select AlertmanagerConfigs
+#   (alertmanager.alertmanagerSpec.alertmanagerConfigSelector in the Helm chart).
+# Validate rules: promtool check rules <file>  (extract the rules from the CRD first)

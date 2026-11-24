@@ -4,19 +4,19 @@ metadata:
   name: podinfo
   namespace: demo
   # labels:
-  #   release: kps     # nötig, wenn serviceMonitorSelector auf dieses Label filtert
+  #   release: kps     # needed if serviceMonitorSelector filters on this label
 spec:
   selector:
     matchLabels:
-      app: podinfo     # Label des SERVICE (kubectl expose übernimmt app=podinfo)
+      app: podinfo     # label of the SERVICE (kubectl expose copies app=podinfo)
   namespaceSelector:
     matchNames: ["demo"]
   endpoints:
-    - port: http       # Port-NAME des Service, nicht die Nummer
+    - port: http       # port NAME of the service, not the number
       path: /metrics
       interval: 15s
-# Frage 3: Welche Labels erwartet Prometheus?
+# Question 3: Which labels does Prometheus expect?
 #   kubectl -n monitoring get prometheus -o jsonpath='{.items[0].spec.serviceMonitorSelector}'
-# → Label release: kps zum ServiceMonitor hinzufügen.
-# Target DOWN / fehlt? Prüfen: Service-Labels, Port-Name, Endpoints vorhanden,
-# serviceMonitorNamespaceSelector, Prometheus-Logs (Container prometheus).
+# → add the label release: kps to the ServiceMonitor.
+# Target DOWN / missing? Check: service labels, port name, endpoints exist,
+# serviceMonitorNamespaceSelector, Prometheus logs (container prometheus).

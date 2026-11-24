@@ -1,107 +1,103 @@
 # Domain 2 – GitOps and Continuous Delivery (25 %)
 
-Kompetenzen laut Curriculum:
-- GitOps-Workflows für Applikations- und Infrastruktur-Deployments implementieren
-- CI/CD-Pipelines mit Kubernetes-Integration bauen und konfigurieren
-- Argo Workflows für Plattform-Automatisierung nutzen
-- Applikationen mit Progressive-Delivery-Strategien ausrollen
+Competencies from the curriculum:
+- Implementing GitOps workflows for application and infrastructure deployment
+- Building and configuring CI/CD pipelines integrated with Kubernetes
+- Working with Argo Workflows for platform automation
+- Deploying applications using progressive delivery strategies
 
-Benötigte Tools: `./setup/install.sh argocd flux tekton argo_workflows`
-Für 2.8: `./setup/install.sh prometheus istio flagger`
+Tools needed: `./setup/install.sh argocd flux tekton argo_workflows`
+For 2.9: `./setup/install.sh prometheus istio flagger`
 
-Öffentliche Beispiel-Repos:
-- `https://github.com/argoproj/argocd-example-apps` (Pfade: `guestbook`, `helm-guestbook`, `kustomize-guestbook`)
-- `https://github.com/stefanprodan/podinfo` (Kustomize unter `./kustomize`, Helm-Chart unter `oci://ghcr.io/stefanprodan/charts/podinfo`)
-
----
-
-## Aufgabe 2.1 – Argo CD Application ⏱ 6 Min.
-
-Erstelle eine Argo CD `Application` namens `guestbook` im Namespace `argocd`:
-- Quelle: `argocd-example-apps`, Pfad `guestbook`, Revision `HEAD`
-- Ziel: In-Cluster, Namespace `guestbook` (soll automatisch angelegt werden)
-- Automatischer Sync mit `prune` und `selfHeal`
-
-**Prüfkriterium:** Status `Synced` / `Healthy`. Lösche danach manuell das Deployment
-`guestbook-ui` und beobachte, wie Argo CD es wiederherstellt.
+Public example repos:
+- `https://github.com/argoproj/argocd-example-apps` (paths: `guestbook`, `helm-guestbook`, `kustomize-guestbook`)
+- `https://github.com/stefanprodan/podinfo` (Kustomize under `./kustomize`, Helm chart at `oci://ghcr.io/stefanprodan/charts/podinfo`)
 
 ---
 
-## Aufgabe 2.2 – ApplicationSet für mehrere Umgebungen ⏱ 8 Min.
+## Task 2.1 – Argo CD Application ⏱ 6 min
 
-Erstelle ein `ApplicationSet` `guestbook-envs`, das per **List-Generator** drei
-Applications erzeugt: `guestbook-dev`, `guestbook-staging`, `guestbook-prod`.
-- Quelle: Pfad `helm-guestbook`
-- Ziel-Namespace jeweils `gb-<env>`, automatisch anlegen
-- Helm-Parameter `replicaCount`: dev=1, staging=2, prod=3
-- Nur `dev` und `staging` syncen automatisch, `prod` manuell.
+Create an Argo CD `Application` named `guestbook` in namespace `argocd`:
+- Source: `argocd-example-apps`, path `guestbook`, revision `HEAD`
+- Destination: in-cluster, namespace `guestbook` (should be created automatically)
+- Automated sync with `prune` and `selfHeal`
 
----
-
-## Aufgabe 2.3 – Sync Waves & Hooks ⏱ 6 Min.
-
-Unter `solutions/2.3-waves/` liegen Manifeste ohne Annotations. Ergänze sie, sodass Argo CD
-in dieser Reihenfolge synct:
-1. Namespace + ConfigMap (Wave `-1`)
-2. Ein `Job` `db-migrate` als **PreSync-Hook**, der nach Erfolg gelöscht wird
-3. Deployment (Wave `0`)
-4. Ein `Job` `smoke-test` als **PostSync-Hook**
-
-Beantworte: Was passiert mit dem Deployment, wenn `db-migrate` fehlschlägt?
+**Check:** status `Synced` / `Healthy`. Then manually delete the Deployment `guestbook-ui` and
+watch Argo CD restore it.
 
 ---
 
-## Aufgabe 2.4 – Flux: GitRepository + Kustomization ⏱ 6 Min.
+## Task 2.2 – ApplicationSet for multiple environments ⏱ 8 min
 
-1. Erstelle im Namespace `flux-system` eine `GitRepository` `podinfo`
-   (URL `https://github.com/stefanprodan/podinfo`, Branch `master`, Intervall 1m).
-2. Erstelle eine Flux `Kustomization` `podinfo`, die den Pfad `./kustomize` in den
-   Namespace `podinfo` deployt, mit `prune: true`, Intervall 5m und einem Health-Check auf
-   das Deployment `podinfo`.
-3. Pausiere die Reconciliation, ändere manuell die Replicas, setze fort und erzwinge eine
-   sofortige Reconciliation.
-
----
-
-## Aufgabe 2.5 – Flux: HelmRelease ⏱ 6 Min.
-
-1. Erstelle eine `HelmRepository` vom Typ **OCI** `podinfo` für
-   `oci://ghcr.io/stefanprodan/charts`.
-2. Erstelle eine `HelmRelease` `podinfo-helm` im Namespace `podinfo-helm`, Chart `podinfo`,
-   Version `>=6.0.0`, mit den Values `replicaCount: 2` und `ui.message: "Hallo CNPE"`.
-3. Konfiguriere: bei Fehlschlag max. 3 Upgrade-Versuche, danach Rollback.
+Create an `ApplicationSet` `guestbook-envs` that uses a **list generator** to create three
+Applications: `guestbook-dev`, `guestbook-staging`, `guestbook-prod`.
+- Source: path `helm-guestbook`
+- Destination namespace `gb-<env>`, created automatically
+- Helm parameter `replicaCount`: dev=1, staging=2, prod=3
+- Only `dev` and `staging` sync automatically, `prod` manually.
 
 ---
 
-## Aufgabe 2.6 – Troubleshooting: App hängt in OutOfSync/Degraded ⏱ 7 Min.
+## Task 2.3 – Sync waves & hooks ⏱ 6 min
+
+`solutions/2.3-waves/` contains manifests without annotations. Add annotations so that Argo CD
+syncs in this order:
+1. Namespace + ConfigMap (wave `-1`)
+2. A `Job` `db-migrate` as a **PreSync hook** that is deleted after it succeeds
+3. Deployment (wave `0`)
+4. A `Job` `smoke-test` as a **PostSync hook**
+
+Answer: What happens to the Deployment if `db-migrate` fails?
+
+---
+
+## Task 2.4 – Flux: GitRepository + Kustomization ⏱ 6 min
+
+1. In namespace `flux-system`, create a `GitRepository` `podinfo`
+   (URL `https://github.com/stefanprodan/podinfo`, branch `master`, interval 1m).
+2. Create a Flux `Kustomization` `podinfo` that deploys the path `./kustomize` into the namespace
+   `podinfo`, with `prune: true`, interval 5m and a health check on the Deployment `podinfo`.
+3. Suspend the reconciliation, change the replicas manually, resume and force an immediate
+   reconciliation.
+
+---
+
+## Task 2.5 – Flux: HelmRelease ⏱ 6 min
+
+1. Create a `HelmRepository` of type **OCI** `podinfo` for `oci://ghcr.io/stefanprodan/charts`.
+2. Create a `HelmRelease` `podinfo-helm` in namespace `podinfo-helm`, chart `podinfo`, version
+   `>=6.0.0`, with the values `replicaCount: 2` and `ui.message: "Hello CNPE"`.
+3. Configure: on failure, max. 3 upgrade retries, then roll back.
+
+---
+
+## Task 2.6 – Troubleshooting: app stuck OutOfSync/Degraded ⏱ 7 min
 
 ```bash
 kubectl apply -f 02-gitops-cd/solutions/2.6-broken-app.yaml
 ```
-Die Application `broken-app` synct nicht. Finde **alle** Fehler und behebe sie, bis sie
-`Synced`/`Healthy` ist. Nutze `argocd app get`, `kubectl describe application` und die
-Conditions.
+The Application `broken-app` does not sync. Find and fix **all** errors until it is
+`Synced`/`Healthy`. Use `argocd app get`, `kubectl describe application` and the conditions.
 
 ---
 
-## Aufgabe 2.7 – Tekton-Pipeline ⏱ 10 Min.
+## Task 2.7 – Tekton pipeline ⏱ 10 min
 
-1. Erstelle einen Tekton-`Task` `lint-yaml` im Namespace `ci`, der einen Parameter `path`
-   hat und im Image `cytopia/yamllint` den Befehl `yamllint -d relaxed $(params.path)` auf einem
-   Workspace `source` ausführt.
-2. Erstelle eine `Pipeline` `ci-pipeline` mit zwei Tasks:
-   - `clone`: klont ein Git-Repo (Parameter `repo-url`) in den Workspace – nutze ein
-     einfaches `alpine/git`-Image (kein Hub-Task nötig)
-   - `lint`: läuft **nach** `clone` und nutzt `lint-yaml`
-3. Starte einen `PipelineRun` gegen `https://github.com/argoproj/argocd-example-apps`
-   mit Pfad `guestbook`, Workspace über `volumeClaimTemplate` (1Gi).
-4. Lies die Logs mit `tkn pipelinerun logs --last -f` (oder kubectl).
+1. Create a Tekton `Task` `lint-yaml` in namespace `ci` that has a parameter `path` and runs
+   `yamllint -d relaxed $(params.path)` in the image `cytopia/yamllint` on a workspace `source`.
+2. Create a `Pipeline` `ci-pipeline` with two tasks:
+   - `clone`: clones a Git repo (parameter `repo-url`) into the workspace – use a simple
+     `alpine/git` image (no Hub task needed)
+   - `lint`: runs **after** `clone` and uses `lint-yaml`
+3. Start a `PipelineRun` against `https://github.com/argoproj/argocd-example-apps` with path
+   `guestbook`, workspace via `volumeClaimTemplate` (1Gi).
+4. Read the logs with `tkn pipelinerun logs --last -f` (or kubectl).
 
 ---
 
-## Aufgabe 2.8 – Argo Workflows ⏱ 10 Min.
+## Task 2.8 – Argo Workflows ⏱ 10 min
 
-1. Erstelle im Namespace `argo` ein `WorkflowTemplate` `platform-dag` mit einem DAG:
+1. In namespace `argo`, create a `WorkflowTemplate` `platform-dag` with a DAG:
    ```
         validate
         /      \
@@ -109,27 +105,92 @@ Conditions.
         \      /
         publish
    ```
-   Jeder Schritt nutzt ein Template `echo` (Image `alpine`, gibt den Parameter `msg` aus).
-2. Starte einen Workflow aus dem Template (`argo submit --from workflowtemplate/platform-dag`).
-3. Erstelle einen `CronWorkflow` `nightly-cleanup`, der täglich um 02:00 (Europe/Berlin)
-   läuft, `concurrencyPolicy: Forbid` hat und die letzten 3 erfolgreichen Runs behält.
-4. Bonus: Füge einem Schritt `retryStrategy` (limit 3, Backoff) hinzu.
+   Every step uses a template `echo` (image `alpine`, prints the parameter `msg`).
+2. Start a workflow from the template (`argo submit --from workflowtemplate/platform-dag`).
+3. Create a `CronWorkflow` `nightly-cleanup` that runs daily at 02:00 (Europe/Berlin), has
+   `concurrencyPolicy: Forbid` and keeps the last 3 successful runs.
+4. Bonus: add a `retryStrategy` (limit 3, backoff) to one step.
 
 ---
 
-## Aufgabe 2.9 – Progressive Delivery mit Flagger (Canary) ⏱ 12 Min.
+## Task 2.9 – Progressive delivery with Flagger (canary) ⏱ 12 min
 
-Voraussetzung: Istio + Prometheus + Flagger installiert.
-1. Erstelle den Namespace `canary-demo` mit Istio-Sidecar-Injection.
-2. Deploye `podinfo` (Image `ghcr.io/stefanprodan/podinfo:6.7.0`, Port 9898) **ohne** Service.
-3. Erstelle eine Flagger-`Canary` `podinfo`:
-   - Analyse-Intervall 30s, Schwelle 5 Fehlschläge, max. Gewicht 50, Schrittweite 10
-   - Metriken: `request-success-rate` min. 99 %, `request-duration` max. 500 ms
-4. Löse einen Canary-Rollout aus, indem du das Image auf `6.7.1` aktualisierst, und
-   beobachte ihn mit `kubectl -n canary-demo describe canary podinfo`.
-5. Wie würdest du das Ganze auf **Blue/Green** umstellen? (Stichwort `iterations`)
+Prerequisite: Istio + Prometheus + Flagger installed.
+1. Create the namespace `canary-demo` with Istio sidecar injection.
+2. Deploy `podinfo` (image `ghcr.io/stefanprodan/podinfo:6.7.0`, port 9898) **without** a service.
+3. Create a Flagger `Canary` `podinfo`:
+   - analysis interval 30s, threshold 5 failures, max weight 50, step weight 10
+   - metrics: `request-success-rate` min. 99 %, `request-duration` max. 500 ms
+4. Trigger a canary rollout by updating the image to `6.7.1`, and watch it with
+   `kubectl -n canary-demo describe canary podinfo`.
+5. How would you switch this to **blue/green**? (keyword `iterations`)
 
 ---
 
-✅ Prüfen: `./02-gitops-cd/verify.sh`
-📖 Lösungen: [`solutions/`](solutions/)
+# More exercises
+
+## Task 2.10 – Argo CD AppProject as a guardrail ⏱ 8 min
+
+Create an `AppProject` `team-a` in namespace `argocd`:
+- Allowed source: only `https://github.com/argoproj/argocd-example-apps`
+- Allowed destinations: only in-cluster, namespaces starting with `team-a-`
+- Cluster-scoped resources: **only** `Namespace` allowed
+- Namespaced blacklist: `ResourceQuota`, `LimitRange`, `NetworkPolicy` (the team must not
+  override platform guardrails)
+- Project role `ci` with permission to **sync** the project's Applications
+
+Test: An Application in project `team-a` with destination namespace `default` must be rejected
+with an error message. One with destination `team-a-guestbook` works.
+
+---
+
+## Task 2.11 – ApplicationSet with the Git directory generator ⏱ 7 min
+
+Create an `ApplicationSet` `example-dirs` that creates an Application for every directory in the
+`argocd-example-apps` repo ending in `-guestbook` – **except** `jsonnet-guestbook`.
+- Application name = directory name
+- Destination namespace `dir-<directory-name>`, created automatically, auto-sync
+
+Bonus: How do you prevent Argo CD from deleting the apps' resources when you delete the
+ApplicationSet? (keyword `preserveResourcesOnDeletion`)
+
+---
+
+## Task 2.12 – Flux: staging variant with patches ⏱ 7 min
+
+Create a second Flux `Kustomization` `podinfo-staging` (source: `GitRepository/podinfo` from 2.4,
+path `./kustomize`) that
+- deploys into the namespace `podinfo-staging`,
+- only reconciles once the Kustomization `podinfo` is ready (`dependsOn`),
+- sets the `HorizontalPodAutoscaler` `podinfo` to `minReplicas: 3` via a **patch**,
+- gives all objects the label `env: staging` (`commonMetadata`).
+
+---
+
+## Task 2.13 – Tekton: `when` and `finally` ⏱ 8 min
+
+In namespace `ci`, create a pipeline `release-gate` with the parameter `environment`:
+1. Task `build` – prints "building".
+2. Task `approve-prod` – runs after `build`, **only if** `environment` equals `prod`.
+3. Task `deploy` – runs after `approve-prod` (and must still run when `approve-prod` was
+   skipped).
+4. `finally` task `notify` – prints the overall status (`$(tasks.status)`).
+
+Start a run with `environment=dev` and check that `approve-prod` is listed in
+`status.skippedTasks`.
+
+---
+
+## Task 2.14 – Argo Workflows: results, conditions, exit handler ⏱ 8 min
+
+Create a `WorkflowTemplate` `coinflip` in namespace `argo`:
+1. Step `flip` (script template, image `alpine`) randomly prints `heads` or `tails`.
+2. Then in parallel: `heads` only runs on `heads`, `tails` only on `tails`
+   (`when` with `{{steps.flip.outputs.result}}`).
+3. An exit handler (`onExit`) always prints `Workflow status: {{workflow.status}}`.
+4. Run the template three times and check in `argo get` which steps were skipped.
+
+---
+
+✅ Check: `./02-gitops-cd/verify.sh`
+📖 Solutions: [`solutions/`](solutions/)

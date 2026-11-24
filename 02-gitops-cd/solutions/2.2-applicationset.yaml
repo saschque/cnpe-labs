@@ -39,7 +39,7 @@ spec:
       syncPolicy:
         syncOptions:
           - CreateNamespace=true
-  # Bedingte syncPolicy: templatePatch erlaubt Logik, die im normalen Template nicht geht
+  # Conditional syncPolicy: templatePatch allows logic that the normal template cannot do
   templatePatch: |
     {{- if .autoSync }}
     spec:

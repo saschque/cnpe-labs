@@ -4,9 +4,9 @@ name: cnpe
 nodes:
   - role: control-plane
     extraPortMappings:
-      - containerPort: 30080   # NodePort für Ingress/Demo-Apps
+      - containerPort: 30080   # NodePort for ingress/demo apps
         hostPort: 30080
-    # Audit-Logging für Aufgabe 5.8
+    # audit logging for task 5.8
     extraMounts:
       - hostPath: ./setup/audit-policy.yaml
         containerPath: /etc/kubernetes/audit-policy.yaml

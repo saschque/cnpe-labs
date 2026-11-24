@@ -1,0 +1,59 @@
+# Kyverno must be allowed to read WebApps (admission only needs webhook matching; for
+# background scans the reports controller needs read access):
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kyverno-read-webapps
+  labels:
+    rbac.kyverno.io/aggregate-to-admission-controller: "true"
+    rbac.kyverno.io/aggregate-to-reports-controller: "true"
+    rbac.kyverno.io/aggregate-to-background-controller: "true"
+rules:
+  - apiGroups: ["platform.example.org"]
+    resources: ["webapps"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: webapp-guardrails
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: dev-limits
+      match:
+        any:
+          - resources:
+              kinds: ["platform.example.org/v1alpha1/WebApp"]
+              namespaceSelector:
+                matchLabels:
+                  env: dev
+      validate:
+        message: "In dev namespaces: at most 2 replicas and size small or medium."
+        pattern:
+          spec:
+            =(replicas): "<=2"
+            =(size): "small | medium"
+    - name: no-latest
+      match:
+        any:
+          - resources:
+              kinds: ["platform.example.org/v1alpha1/WebApp"]
+      validate:
+        message: "spec.image must not use ':latest'."
+        pattern:
+          spec:
+            image: "!*:latest"
+# Test:
+#   kubectl create ns team-dev ; kubectl label ns team-dev env=dev
+#   cat <<'EOF' | kubectl apply --dry-run=server -f -
+#   apiVersion: platform.example.org/v1alpha1
+#   kind: WebApp
+#   metadata: {name: too-big, namespace: team-dev}
+#   spec: {image: nginx:1.27, replicas: 5}
+#   EOF
+#   → denied: "In dev namespaces: at most 2 replicas ..."
+# =(field) = "if present, then it must match"; "a | b" = OR in the pattern.
+# Note: default values from the CRD schema are applied BEFORE the admission webhooks –
+# so replicas is always present (default 1).

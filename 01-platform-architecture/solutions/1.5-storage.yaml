@@ -1,11 +1,11 @@
-# Provisioner herausfinden: kubectl get storageclass
+# Find the provisioner: kubectl get storageclass
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: fast-retain
 provisioner: rancher.io/local-path
 reclaimPolicy: Retain
-volumeBindingMode: WaitForFirstConsumer   # PVC bleibt Pending bis ein Pod geplant wird
+volumeBindingMode: WaitForFirstConsumer   # PVC stays Pending until a pod is scheduled
 allowVolumeExpansion: true
 ---
 apiVersion: v1
@@ -37,5 +37,5 @@ spec:
     - name: data
       persistentVolumeClaim:
         claimName: ledger-data
-# Warum Pending? WaitForFirstConsumer verzögert Binding/Provisioning, bis der Scheduler
-# einen Node gewählt hat – so landet das Volume in der richtigen Zone/auf dem richtigen Node.
+# Why Pending? WaitForFirstConsumer delays binding/provisioning until the scheduler
+# has picked a node – so the volume ends up in the right zone/on the right node.

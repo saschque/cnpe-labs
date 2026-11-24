@@ -14,7 +14,7 @@ spec:
       image: aquasec/trivy
       args:
         - image
-        - --exit-code=1                    # != 0 bei Funden → Task schlägt fehl
+        - --exit-code=1                    # != 0 on findings → task fails
         - --severity=$(params.severity)
         - --ignore-unfixed
         - --no-progress
@@ -69,7 +69,7 @@ spec:
                   - resources:
                       kinds: ["Pod"]
               validate:
-                message: "Der Tag ':latest' ist nicht erlaubt."
+                message: "The tag ':latest' is not allowed."
                 pattern:
                   spec:
                     containers:
@@ -79,7 +79,7 @@ spec:
       image: ghcr.io/kyverno/kyverno-cli
       workingDir: $(workspaces.source.path)
       args: ["apply", "/workspace/policy.yaml", "--resource", "$(params.manifests)", "--policy-report"]
-      # kyverno apply liefert Exit-Code 1 bei Verstößen gegen Enforce-Regeln
+      # kyverno apply returns exit code 1 on violations of Enforce rules
 ---
 apiVersion: tekton.dev/v1
 kind: Pipeline
@@ -94,7 +94,7 @@ spec:
     - name: shared
   tasks:
     - name: clone
-      taskRef: {name: git-clone-simple}          # aus 2.7
+      taskRef: {name: git-clone-simple}          # from 2.7
       params:
         - {name: repo-url, value: $(params.repo-url)}
       workspaces:
@@ -133,10 +133,10 @@ spec:
         spec:
           accessModes: ["ReadWriteOnce"]
           resources: {requests: {storage: 1Gi}}
-# Achtung RWO-Workspace: parallele Tasks müssen auf demselben Node laufen
-# (Tekton Affinity Assistant regelt das standardmäßig).
+# Watch out with an RWO workspace: parallel tasks must run on the same node
+# (the Tekton affinity assistant handles this by default).
 ---
-# Bonus 5.9.5: Signaturprüfung zur Laufzeit
+# Bonus 5.9.5: signature verification at runtime
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -158,7 +158,7 @@ spec:
                 - keys:
                     publicKeys: |-
                       -----BEGIN PUBLIC KEY-----
-                      <cosign.pub hier einfügen>
+                      <paste cosign.pub here>
                       -----END PUBLIC KEY-----
-# Signieren: cosign generate-key-pair ; cosign sign --key cosign.key ghcr.io/my-org/app:1.0
-# SBOM als Attestation: cosign attest --key cosign.key --type spdxjson --predicate sbom.spdx.json <image>
+# Signing: cosign generate-key-pair ; cosign sign --key cosign.key ghcr.io/my-org/app:1.0
+# SBOM as an attestation: cosign attest --key cosign.key --type spdxjson --predicate sbom.spdx.json <image>

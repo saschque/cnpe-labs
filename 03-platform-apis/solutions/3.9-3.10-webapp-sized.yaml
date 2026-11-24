@@ -1,0 +1,188 @@
+# Solution 3.9 + 3.10
+# 1) Extend the XRD (re-apply it completely – compatible change: only optional fields added)
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: webapps.platform.example.org
+spec:
+  scope: Namespaced
+  group: platform.example.org
+  names:
+    kind: WebApp
+    plural: webapps
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      additionalPrinterColumns:
+        - name: URL
+          type: string
+          jsonPath: .status.url
+        - name: Size
+          type: string
+          jsonPath: .spec.size
+        - name: Ready                              # 3.10
+          type: integer
+          jsonPath: .status.availableReplicas
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required: ["image"]
+              properties:
+                image:
+                  type: string
+                replicas:
+                  type: integer
+                  default: 1
+                  minimum: 1
+                  maximum: 10
+                port:
+                  type: integer
+                  default: 80
+                size:                              # 3.9
+                  type: string
+                  enum: ["small", "medium", "large"]
+                  default: small
+            status:
+              type: object
+              properties:
+                url:
+                  type: string
+                availableReplicas:                 # 3.10
+                  type: integer
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: webapp-sized
+  labels:
+    profile: sized                                 # for compositionSelector
+spec:
+  compositeTypeRef:
+    apiVersion: platform.example.org/v1alpha1
+    kind: WebApp
+  mode: Pipeline
+  pipeline:
+    - step: patch-and-transform
+      functionRef:
+        name: function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: deployment
+            base:
+              apiVersion: apps/v1
+              kind: Deployment
+              spec:
+                replicas: 1
+                selector:
+                  matchLabels: {}
+                template:
+                  metadata:
+                    labels: {}
+                  spec:
+                    containers:
+                      - name: app
+                        image: placeholder
+                        ports:
+                          - containerPort: 80
+                        resources:
+                          requests:
+                            memory: 128Mi
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: metadata.name
+                toFieldPath: metadata.name
+              - type: FromCompositeFieldPath
+                fromFieldPath: metadata.name
+                toFieldPath: spec.selector.matchLabels[app]
+              - type: FromCompositeFieldPath
+                fromFieldPath: metadata.name
+                toFieldPath: spec.template.metadata.labels[app]
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.image
+                toFieldPath: spec.template.spec.containers[0].image
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.port
+                toFieldPath: spec.template.spec.containers[0].ports[0].containerPort
+              - type: FromCompositeFieldPath       # size → replicas
+                fromFieldPath: spec.size
+                toFieldPath: spec.replicas
+                transforms:
+                  - type: map
+                    map:
+                      small: 1
+                      medium: 2
+                      large: 4
+              - type: FromCompositeFieldPath       # size → memory request
+                fromFieldPath: spec.size
+                toFieldPath: spec.template.spec.containers[0].resources.requests.memory
+                transforms:
+                  - type: map
+                    map:
+                      small: 128Mi
+                      medium: 256Mi
+                      large: 512Mi
+              - type: ToCompositeFieldPath         # 3.10: status back into the XR
+                fromFieldPath: status.availableReplicas
+                toFieldPath: status.availableReplicas
+            readinessChecks:
+              - type: MatchCondition
+                matchCondition:
+                  type: Available
+                  status: "True"
+          - name: service
+            base:
+              apiVersion: v1
+              kind: Service
+              spec:
+                selector: {}
+                ports:
+                  - port: 80
+                    targetPort: 80
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: metadata.name
+                toFieldPath: metadata.name
+              - type: FromCompositeFieldPath
+                fromFieldPath: metadata.name
+                toFieldPath: spec.selector[app]
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.port
+                toFieldPath: spec.ports[0].targetPort
+              - type: CombineToComposite
+                combine:
+                  variables:
+                    - fromFieldPath: metadata.name
+                    - fromFieldPath: metadata.namespace
+                  strategy: string
+                  string:
+                    fmt: "http://%s.%s.svc"
+                toFieldPath: status.url
+            readinessChecks:
+              - type: None
+---
+apiVersion: platform.example.org/v1alpha1
+kind: WebApp
+metadata:
+  name: catalog
+  namespace: team-a
+spec:
+  image: nginx:1.27
+  size: medium
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        profile: sized
+# Check:
+#   kubectl -n team-a get webapp catalog          # SIZE medium, READY 2
+#   kubectl -n team-a get deploy catalog -o jsonpath='{.spec.replicas} {.spec.template.spec.containers[0].resources.requests.memory}'
+#   → 2 256Mi
+# Note: the map values 1/2/4 are YAML integers – the Deployment field replicas needs an integer.
+# When patching into a string field, an additional convert transform (toType: string) helps.
+# If several Compositions match, Crossplane picks one – so keep labels unique
+# or bind by compositionRef (name). Default composition: spec.defaultCompositionRef in the XRD.

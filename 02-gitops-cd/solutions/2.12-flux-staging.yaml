@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: podinfo-staging
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: podinfo-staging
+  namespace: flux-system
+spec:
+  interval: 5m
+  path: ./kustomize
+  prune: true
+  targetNamespace: podinfo-staging
+  sourceRef:
+    kind: GitRepository
+    name: podinfo
+  dependsOn:
+    - name: podinfo                    # Kustomization in the same namespace
+  commonMetadata:
+    labels:
+      env: staging
+  patches:
+    - target:
+        kind: HorizontalPodAutoscaler
+        name: podinfo
+      patch: |
+        - op: replace
+          path: /spec/minReplicas
+          value: 3
+# Check:
+#   flux get kustomizations
+#   kubectl -n podinfo-staging get hpa podinfo -o jsonpath='{.spec.minReplicas}'   → 3
+#   kubectl -n podinfo-staging get deploy podinfo --show-labels                     → env=staging
+# Variables instead of patches: spec.postBuild.substitute / substituteFrom (ConfigMap/Secret),
+# then use ${VAR} in the manifests.

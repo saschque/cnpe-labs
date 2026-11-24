@@ -82,7 +82,7 @@ spec:
 apiVersion: tekton.dev/v1
 kind: PipelineRun
 metadata:
-  generateName: ci-pipeline-run-      # kubectl create -f (nicht apply!) wegen generateName
+  generateName: ci-pipeline-run-      # kubectl create -f (not apply!) because of generateName
   namespace: ci
 spec:
   pipelineRef:
@@ -102,5 +102,5 @@ spec:
               storage: 1Gi
 # Logs:  tkn pipelinerun logs --last -f -n ci
 #        kubectl -n ci get pipelineruns ; kubectl -n ci logs -l tekton.dev/pipelineTask=lint --all-containers
-# Hub-Alternative: Task "git-clone" aus dem Tekton Catalog über Resolver:
+# Hub alternative: task "git-clone" from the Tekton catalog via a resolver:
 #   taskRef: {resolver: hub, params: [{name: name, value: git-clone}, {name: version, value: "0.9"}]}

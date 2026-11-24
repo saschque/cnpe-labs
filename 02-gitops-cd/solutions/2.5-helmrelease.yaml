@@ -31,7 +31,7 @@ spec:
   values:
     replicaCount: 2
     ui:
-      message: "Hallo CNPE"
+      message: "Hello CNPE"
   install:
     remediation:
       retries: 3
@@ -41,4 +41,4 @@ spec:
       remediateLastFailure: true
       strategy: rollback
 # Debug: flux get helmreleases -A ; kubectl -n podinfo-helm describe helmrelease podinfo-helm
-# Neuere Alternative zu HelmRepository type=oci: Quelle "OCIRepository" + spec.chartRef
+# Newer alternative to HelmRepository type=oci: source "OCIRepository" + spec.chartRef

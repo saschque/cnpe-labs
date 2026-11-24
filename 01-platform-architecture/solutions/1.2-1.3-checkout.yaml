@@ -1,9 +1,9 @@
-# Schneller Weg (imperativ):
+# Fast way (imperative):
 #   kubectl -n team-payments create deploy checkout --image=registry.k8s.io/hpa-example --port=80
 #   kubectl -n team-payments set resources deploy checkout --requests=cpu=200m
 #   kubectl -n team-payments expose deploy checkout --port=80
 #   kubectl -n team-payments autoscale deploy checkout --min=2 --max=8 --cpu-percent=60
-#   (behavior muss danach per kubectl edit ergänzt werden)
+#   (add the behavior section afterwards with kubectl edit)
 apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass
 metadata:

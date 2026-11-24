@@ -4,7 +4,7 @@ metadata:
   name: podinfo-dashboard
   namespace: monitoring
   labels:
-    grafana_dashboard: "1"      # Grafana-Sidecar lädt die Datei automatisch
+    grafana_dashboard: "1"      # the Grafana sidecar loads the file automatically
 data:
   podinfo.json: |
     {
@@ -15,7 +15,7 @@ data:
       "panels": [
         {
           "type": "timeseries",
-          "title": "Request-Rate",
+          "title": "Request rate",
           "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
           "targets": [
             {"expr": "sum by (status) (rate(http_requests_total{namespace=\"demo\"}[5m]))", "legendFormat": "{{status}}"}
@@ -23,7 +23,7 @@ data:
         },
         {
           "type": "timeseries",
-          "title": "p95-Latenz",
+          "title": "p95 latency",
           "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
           "fieldConfig": {"defaults": {"unit": "s"}},
           "targets": [
@@ -32,5 +32,5 @@ data:
         }
       ]
     }
-# Erscheint nicht? Sidecar-Logs prüfen:
+# Not showing up? Check the sidecar logs:
 #   kubectl -n monitoring logs deploy/kps-grafana -c grafana-sc-dashboard

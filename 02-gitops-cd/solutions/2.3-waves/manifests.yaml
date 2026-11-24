@@ -1,5 +1,5 @@
-# AUFGABE: Ergänze die Annotations (siehe README, Aufgabe 2.3).
-# Lösung: siehe solution.yaml im selben Ordner.
+# TASK: add the annotations (see README, task 2.3).
+# Solution: see solution.yaml in the same folder.
 apiVersion: v1
 kind: ConfigMap
 metadata:

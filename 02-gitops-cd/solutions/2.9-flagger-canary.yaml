@@ -37,12 +37,12 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: podinfo
-  service:                  # Flagger erzeugt podinfo, podinfo-primary, podinfo-canary + VirtualService
+  service:                  # Flagger creates podinfo, podinfo-primary, podinfo-canary + VirtualService
     port: 9898
     targetPort: 9898
   analysis:
     interval: 30s
-    threshold: 5            # nach 5 fehlgeschlagenen Checks → Rollback
+    threshold: 5            # after 5 failed checks → rollback
     maxWeight: 50
     stepWeight: 10
     metrics:
@@ -52,21 +52,21 @@ spec:
         interval: 1m
       - name: request-duration
         thresholdRange:
-          max: 500          # Millisekunden
+          max: 500          # milliseconds
         interval: 1m
     webhooks:
-      - name: load-test     # optional: erzeugt Traffic, damit Metriken entstehen
+      - name: load-test     # optional: generates traffic so metrics exist
         url: http://flagger-loadtester.test/
         timeout: 5s
         metadata:
           cmd: "hey -z 1m -q 10 -c 2 http://podinfo-canary.canary-demo:9898/"
-# Rollout auslösen:
+# Trigger a rollout:
 #   kubectl -n canary-demo set image deploy/podinfo podinfo=ghcr.io/stefanprodan/podinfo:6.7.1
 #   kubectl -n canary-demo get canary -w
 #   kubectl -n canary-demo describe canary podinfo     # Events: "Advance podinfo canary weight 10" …
 # Load-Tester (optional): helm upgrade -i flagger-loadtester flagger/loadtester -n test --create-namespace
 #
-# Blue/Green statt Canary: stepWeight/maxWeight entfernen und stattdessen
+# Blue/green instead of canary: remove stepWeight/maxWeight and use instead
 #   analysis:
-#     iterations: 10       # 10 × interval testen, dann kompletter Switch
-# A/B-Testing: zusätzlich analysis.match mit Header-Regeln (z. B. x-canary: insider).
+#     iterations: 10       # test 10 × interval, then switch completely
+# A/B testing: additionally analysis.match with header rules (e.g. x-canary: insider).

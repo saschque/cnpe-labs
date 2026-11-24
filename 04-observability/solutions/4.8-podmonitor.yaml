@@ -1,0 +1,22 @@
+# Step 1 – name the port:
+#   kubectl -n demo patch deploy podinfo --type=json \
+#     -p='[{"op":"add","path":"/spec/template/spec/containers/0/ports/0/name","value":"http-metrics"}]'
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: podinfo-pods
+  namespace: demo
+spec:
+  selector:
+    matchLabels:
+      app: podinfo
+  podMetricsEndpoints:
+    - port: http-metrics          # name of the CONTAINER port
+      path: /metrics
+      interval: 30s
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_pod_label_app]
+          targetLabel: application
+# Alternative without relabeling: spec.podTargetLabels: ["app"] copies the label 1:1 (name stays "app").
+# Check: Prometheus → Status → Targets → podMonitor/demo/podinfo-pods/0
+# Watch out for podMonitorSelector / podMonitorNamespaceSelector of the Prometheus resource.

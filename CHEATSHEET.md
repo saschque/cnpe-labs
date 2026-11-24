@@ -1,9 +1,9 @@
 # CNPE Cheatsheet
 
-## Allgemein
+## General
 ```bash
 alias k=kubectl; export do="--dry-run=client -o yaml"
-k config use-context <ctx>                       # IMMER zuerst!
+k config use-context <ctx>                       # ALWAYS first!
 k create deploy x --image=nginx:1.27 $do > x.yaml
 k explain <kind>.spec --recursive | less
 k api-resources --api-group=<group>
@@ -12,12 +12,12 @@ k auth can-i <verb> <res> -n <ns> --as=<user> [--as-group=<g>]
 k auth can-i --list --as=system:serviceaccount:<ns>:<sa>
 k get <res> -o jsonpath='{.status.conditions}' | jq
 k patch <res> --type=json -p='[{"op":"replace","path":"/spec/...","value":...}]'
-k apply --dry-run=server -f x.yaml               # Validierung inkl. Admission-Webhooks
+k apply --dry-run=server -f x.yaml               # validation incl. admission webhooks
 ```
 
 ## Argo CD
 ```bash
-argocd login <server> --insecure --username admin --password <pw>   # oder: argocd login --core
+argocd login <server> --insecure --username admin --password <pw>   # or: argocd login --core
 argocd app list | get <app> | diff <app> | sync <app> | history <app> | rollback <app> <id>
 argocd app get <app> --hard-refresh
 argocd app set <app> --sync-policy automated --auto-prune --self-heal
@@ -45,7 +45,7 @@ tkn pipeline start <p> -p k=v -w name=shared,volumeClaimTemplateFile=pvc.yaml --
 tkn pipelinerun logs --last -f
 tkn pipelinerun describe --last
 ```
-Variablen: `$(params.x)`, `$(workspaces.w.path)`, `$(results.r.path)`, `$(tasks.t.results.r)`.
+Variables: `$(params.x)`, `$(workspaces.w.path)`, `$(results.r.path)`, `$(tasks.t.results.r)`.
 
 ## Argo Workflows
 ```bash
@@ -53,17 +53,17 @@ argo submit -n argo wf.yaml --watch | argo submit --from workflowtemplate/<t> -p
 argo list | get @latest | logs @latest | retry <wf> | resubmit <wf>
 argo template list | argo cron list
 ```
-Variablen: `{{inputs.parameters.x}}`, `{{workflow.parameters.x}}`, `{{steps.s.outputs.result}}`,
+Variables: `{{inputs.parameters.x}}`, `{{workflow.parameters.x}}`, `{{steps.s.outputs.result}}`,
 `{{tasks.t.outputs.parameters.p}}`. DAG: `depends: "a && b"`.
 
 ## Crossplane
 ```bash
 k get xrd ; k get composition ; k get functions ; k get providers
-k get managed                    # alle Managed Resources (v1 Provider)
+k get managed                    # all managed resources (v1 providers)
 crossplane beta trace <kind> <name> [-n ns]
 k -n crossplane-system logs deploy/crossplane
 ```
-XRD = Schema · XR = Instanz · Composition = Rezept. Patches: `FromCompositeFieldPath`,
+XRD = schema · XR = instance · Composition = recipe. Patches: `FromCompositeFieldPath`,
 `ToCompositeFieldPath`, `CombineFromComposite`, `CombineToComposite`; Transforms: `convert`,
 `map`, `string` (fmt), `math`.
 
@@ -73,8 +73,8 @@ k get clusterpolicy ; k get policyreport -A ; k get updaterequests -n kyverno
 kyverno apply policy.yaml --resource res.yaml
 kyverno test .
 ```
-Pattern-Operatoren: `?*` (nicht leer), `!value`, `>0`, `(name): "*"` (Anker), `+(field)` (nur hinzufügen),
-`=(field)` (wenn vorhanden, dann…).
+Pattern operators: `?*` (not empty), `!value`, `>0`, `(name): "*"` (anchor), `+(field)` (add only),
+`=(field)` (if present, then…).
 
 ## Gatekeeper
 ```bash
@@ -90,7 +90,7 @@ histogram_quantile(0.95, sum by (le) (rate(<metric>_bucket[5m])))
 topk(5, increase(kube_pod_container_status_restarts_total[1h]))
 ```
 CRDs: `ServiceMonitor`, `PodMonitor`, `PrometheusRule`, `AlertmanagerConfig`.
-Selektoren prüfen: `k -n monitoring get prometheus -o yaml | grep -A3 Selector`.
+Check the selectors: `k -n monitoring get prometheus -o yaml | grep -A3 Selector`.
 
 ## Istio / Linkerd
 ```bash
@@ -99,7 +99,7 @@ k annotate ns <ns> linkerd.io/inject=enabled    # Linkerd: Annotation
 istioctl analyze -n <ns> ; istioctl x describe pod <pod>
 linkerd check --proxy ; linkerd viz edges deploy -n <ns>
 ```
-Istio: `PeerAuthentication` (mTLS-Modus), `AuthorizationPolicy` (ALLOW/DENY, principals
+Istio: `PeerAuthentication` (mTLS mode), `AuthorizationPolicy` (ALLOW/DENY, principals
 `cluster.local/ns/<ns>/sa/<sa>`), `VirtualService`/`DestinationRule` (Traffic).
 
 ## OpenCost
@@ -108,6 +108,6 @@ k -n opencost port-forward svc/opencost 9003
 curl -sG localhost:9003/allocation/compute -d window=24h -d aggregate=namespace -d accumulate=true | jq
 ```
 
-## Troubleshooting-Reihenfolge
+## Troubleshooting order
 Events → `describe` → `logs [--previous]` → Endpoints/Selectors → Quotas/LimitRanges →
-Policies (Kyverno/Gatekeeper/PSA/NetworkPolicy) → Controller-Logs.
+Policies (Kyverno/Gatekeeper/PSA/NetworkPolicy) → controller logs.

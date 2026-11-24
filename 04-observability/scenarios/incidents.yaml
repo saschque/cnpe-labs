@@ -1,4 +1,4 @@
-# Incident-Szenarien für Aufgabe 4.7 – NICHT die Kommentare/Lösungen spoilern, einfach anwenden.
+# Incident scenarios for task 4.7 – just apply, don't spoil yourself with the solutions.
 apiVersion: v1
 kind: Namespace
 metadata:

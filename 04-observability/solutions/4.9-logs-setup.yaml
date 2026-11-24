@@ -1,0 +1,38 @@
+# SETUP for task 4.9
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: logs-demo
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chatty
+  namespace: logs-demo
+spec:
+  replicas: 3
+  selector:
+    matchLabels: {app: chatty}
+  template:
+    metadata:
+      labels: {app: chatty}
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          command: ["sh", "-c"]
+          args:
+            - |
+              # every pod has its own error rate (1 in N lines is ERROR)
+              N=$(( $(od -An -N1 -tu1 /dev/urandom) % 5 + 2 ))
+              i=0
+              while true; do
+                i=$((i+1))
+                if [ $((i % N)) -eq 0 ]; then echo "$(date -Iseconds) ERROR payment failed id=$i"
+                elif [ $((i % 3)) -eq 0 ]; then echo "$(date -Iseconds) WARN slow response id=$i"
+                else echo "$(date -Iseconds) INFO request ok id=$i"; fi
+                sleep 1
+              done
+        - name: sidecar
+          image: busybox:1.36
+          command: ["sh", "-c", "while true; do echo \"$(date -Iseconds) sidecar heartbeat\"; sleep 5; done"]

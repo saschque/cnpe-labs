@@ -1,0 +1,44 @@
+# Preparation:
+#   kubectl label node cnpe-worker2 pool=platform
+#   kubectl taint node cnpe-worker2 dedicated=platform:NoSchedule
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: platform-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: platform-agent
+  namespace: platform-system
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: platform-agent}
+  template:
+    metadata:
+      labels: {app: platform-agent}
+    spec:
+      tolerations:                       # the toleration only ALLOWS the node …
+        - key: dedicated
+          operator: Equal
+          value: platform
+          effect: NoSchedule
+      affinity:                          # … the affinity ENFORCES it.
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: pool
+                    operator: In
+                    values: ["platform"]
+      containers:
+        - name: agent
+          image: registry.k8s.io/pause:3.10
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+# Check:
+#   kubectl -n platform-system get pods -o wide        # NODE = cnpe-worker2
+#   kubectl create deploy probe --image=nginx:1.27 --replicas=4 ; kubectl get pods -o wide -l app=probe
+#   → no pod on cnpe-worker2
+# Rule of thumb: taint + toleration = "may", affinity/nodeSelector = "must". Dedicated pools need both.

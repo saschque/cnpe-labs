@@ -1,0 +1,53 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: team-a
+  namespace: argocd
+spec:
+  description: "Project for team A"
+  sourceRepos:
+    - https://github.com/argoproj/argocd-example-apps
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: "team-a-*"
+  clusterResourceWhitelist:          # empty = no cluster-scoped resources allowed
+    - group: ""
+      kind: Namespace
+  namespaceResourceBlacklist:
+    - group: ""
+      kind: ResourceQuota
+    - group: ""
+      kind: LimitRange
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+  roles:
+    - name: ci
+      description: "CI may sync this project's Applications"
+      policies:
+        - p, proj:team-a:ci, applications, sync, team-a/*, allow
+        - p, proj:team-a:ci, applications, get, team-a/*, allow
+---
+# Works:
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: team-a-guestbook
+  namespace: argocd
+spec:
+  project: team-a
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps
+    targetRevision: HEAD
+    path: guestbook
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: team-a-guestbook
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions: [CreateNamespace=true]
+# Gets rejected (namespace: default):
+#   Condition InvalidSpecError: "application destination server ... and namespace 'default'
+#   do not match any of the allowed destinations in project 'team-a'"
+#
+# Token for the CI role:
+#   argocd proj role create-token team-a ci --expires-in 24h
