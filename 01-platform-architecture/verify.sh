@@ -66,29 +66,30 @@ check "no-besteffort scoped to BestEffort (scopes or scopeSelector)" bash -c \
 eq "no-besteffort allows 0 pods" "0" k -n $NS get quota no-besteffort -o jsonpath='{.spec.hard.pods}'
 
 section "1.12 Capacity analysis"
-# Recompute the expected values from the live cluster (running pods, app containers only)
-JQ_CPU='def mcpu: if . == null then 0 elif test("m$") then (.[:-1] | tonumber) else (tonumber * 1000) end;
-        [.items[] | {node: .spec.nodeName, ns: .metadata.namespace,
-                     cpu: ([.spec.containers[].resources.requests.cpu | mcpu] | add)}]'
-PODS_JSON=$(kubectl get pods -A --field-selector=status.phase=Running -o json 2>/dev/null)
-EXP_NODES=$(jq -r "$JQ_CPU"' | group_by(.node)[] | "\(.[0].node) \(map(.cpu) | add | floor)"' <<<"$PODS_JSON" | sort)
-EXP_TOP=$(jq -r "$JQ_CPU"' | group_by(.ns) | map({ns: .[0].ns, cpu: (map(.cpu) | add)}) | max_by(.cpu) | .ns' <<<"$PODS_JSON")
+if active; then
+  # Recompute the expected values from the live cluster (running pods, app containers only)
+  JQ_CPU='def mcpu: if . == null then 0 elif test("m$") then (.[:-1] | tonumber) else (tonumber * 1000) end;
+          [.items[] | {node: .spec.nodeName, ns: .metadata.namespace,
+                       cpu: ([.spec.containers[].resources.requests.cpu | mcpu] | add)}]'
+  PODS_JSON=$(kubectl get pods -A --field-selector=status.phase=Running -o json 2>/dev/null)
+  EXP_NODES=$(jq -r "$JQ_CPU"' | group_by(.node)[] | "\(.[0].node) \(map(.cpu) | add | floor)"' <<<"$PODS_JSON" | sort)
+  EXP_TOP=$(jq -r "$JQ_CPU"' | group_by(.ns) | map({ns: .[0].ns, cpu: (map(.cpu) | add)}) | max_by(.cpu) | .ns' <<<"$PODS_JSON")
 
-check "/tmp/node-requests.txt exists and is not empty" test -s /tmp/node-requests.txt
-# normalize: collapse whitespace, strip a trailing "m", sort
-ACT_NODES=$(sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//; s/m$//' /tmp/node-requests.txt 2>/dev/null | grep . | sort)
-if [[ -n "$ACT_NODES" && "$ACT_NODES" == "$EXP_NODES" ]]; then
-  echo "  ✅ /tmp/node-requests.txt matches the CPU requests per node"; PASS=$((PASS+1))
-else
-  echo "  ❌ /tmp/node-requests.txt matches the CPU requests per node"
-  echo "     expected:"; sed 's/^/       /' <<<"$EXP_NODES"
-  echo "     got:";      sed 's/^/       /' <<<"${ACT_NODES:-(nothing)}"
-  echo "     (values change when pods start/stop – rerun your command right before verify)"
-  FAIL=$((FAIL+1))
+  check "/tmp/node-requests.txt exists and is not empty" test -s /tmp/node-requests.txt
+  # normalize: collapse whitespace, strip a trailing "m", sort
+  ACT_NODES=$(sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//; s/m$//' /tmp/node-requests.txt 2>/dev/null | grep . | sort)
+  if [[ -n "$ACT_NODES" && "$ACT_NODES" == "$EXP_NODES" ]]; then
+    pass "/tmp/node-requests.txt matches the CPU requests per node"
+  else
+    fail "/tmp/node-requests.txt matches the CPU requests per node"
+    echo "     expected:"; sed 's/^/       /' <<<"$EXP_NODES"
+    echo "     got:";      sed 's/^/       /' <<<"${ACT_NODES:-(nothing)}"
+    echo "     (values change when pods start/stop – rerun your command right before verify)"
+  fi
+
+  check "/tmp/top-requests-ns.txt exists and is not empty" test -s /tmp/top-requests-ns.txt
+  eq "/tmp/top-requests-ns.txt names the namespace with the highest CPU requests" "$EXP_TOP" \
+    bash -c "tr -d '[:space:]' < /tmp/top-requests-ns.txt"
 fi
-
-check "/tmp/top-requests-ns.txt exists and is not empty" test -s /tmp/top-requests-ns.txt
-eq "/tmp/top-requests-ns.txt names the namespace with the highest CPU requests" "$EXP_TOP" \
-  bash -c "tr -d '[:space:]' < /tmp/top-requests-ns.txt"
 
 summary

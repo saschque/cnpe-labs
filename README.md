@@ -39,7 +39,9 @@ plus `kubectl`, `helm`, `kustomize`, `git`, `jq`, `yq`.
 cat 01-platform-architecture/README.md
 
 # 4. Check your result
-./01-platform-architecture/verify.sh
+./01-platform-architecture/verify.sh            # all tasks of the domain
+./01-platform-architecture/verify.sh 1.9 1.12   # only selected tasks
+./01-platform-architecture/verify.sh --list     # list the task sections
 ```
 
 Requirements: Docker, [kind](https://kind.sigs.k8s.io), kubectl, helm, git, jq.

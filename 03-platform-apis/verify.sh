@@ -40,12 +40,14 @@ section "3.4 Crossplane Troubleshooting"
 eq "WebApp broken Ready" "True" k -n team-a get webapp broken -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
 
 section "3.6 Kyverno generate"
-k create ns "$TMPNS" >/dev/null 2>&1 && k label ns "$TMPNS" platform.example.org/tenant=true team=verify >/dev/null 2>&1
-sleep 8
+if active; then   # creates a throwaway namespace – only when this section is selected
+  k create ns "$TMPNS" >/dev/null 2>&1 && k label ns "$TMPNS" platform.example.org/tenant=true team=verify >/dev/null 2>&1
+  sleep 8
+fi
 check "Quota generated" k -n "$TMPNS" get resourcequota tenant-quota
 check "NetworkPolicy generated" k -n "$TMPNS" get networkpolicy default-deny
 eq "RoleBinding for verify-devs" "verify-devs" k -n "$TMPNS" get rolebinding team-edit -o jsonpath='{.subjects[0].name}'
-k delete ns "$TMPNS" --wait=false >/dev/null 2>&1
+active && k delete ns "$TMPNS" --wait=false >/dev/null 2>&1
 
 section "3.7 Self-service workflow"
 check "WorkflowTemplate provision-tenant exists" k -n argo get workflowtemplate provision-tenant
