@@ -59,7 +59,11 @@ check "PVC data-kv-0 Bound" bash -c "[[ \$(kubectl -n data get pvc data-kv-0 -o 
 
 section "1.11 Scoped Quotas"
 eq "critical-quota scoped to platform-critical" "platform-critical" k -n $NS get quota critical-quota -o jsonpath='{.spec.scopeSelector.matchExpressions[0].values[0]}'
-eq "no-besteffort Scope" "BestEffort" k -n $NS get quota no-besteffort -o jsonpath='{.spec.scopes[0]}'
+# accept both forms: spec.scopes: [BestEffort]  or  spec.scopeSelector (scopeName: BestEffort, operator: Exists)
+check "no-besteffort scoped to BestEffort (scopes or scopeSelector)" bash -c \
+  "kubectl -n $NS get quota no-besteffort -o json | jq -e '((.spec.scopes // []) | index(\"BestEffort\")) or
+     any(.spec.scopeSelector.matchExpressions[]?; .scopeName == \"BestEffort\" and .operator == \"Exists\")'"
+eq "no-besteffort allows 0 pods" "0" k -n $NS get quota no-besteffort -o jsonpath='{.spec.hard.pods}'
 
 section "1.12 Capacity analysis"
 # Recompute the expected values from the live cluster (running pods, app containers only)
