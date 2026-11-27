@@ -21,12 +21,27 @@ eq "PriorityClass value" "1000000" k get priorityclass platform-critical -o json
 eq "Deployment uses PriorityClass" "platform-critical" k -n $NS get deploy checkout -o jsonpath='{.spec.template.spec.priorityClassName}'
 eq "PDB minAvailable=1" "1" k -n $NS get pdb checkout-pdb -o jsonpath='{.spec.minAvailable}'
 eq "TopologySpread maxSkew=1" "1" k -n $NS get deploy checkout -o jsonpath='{.spec.template.spec.topologySpreadConstraints[0].maxSkew}'
+eq "TopologySpread across nodes (topologyKey=kubernetes.io/hostname)" "kubernetes.io/hostname" \
+  k -n $NS get deploy checkout -o jsonpath='{.spec.template.spec.topologySpreadConstraints[0].topologyKey}'
+check "TopologySpread labelSelector selects the checkout pods" bash -c \
+  "kubectl -n $NS get deploy checkout -o json | jq -e '.spec.template as \$t | .spec.template.spec.topologySpreadConstraints[0].labelSelector.matchLabels
+     | (. != null and length > 0) and (to_entries | all(\$t.metadata.labels[.key] == .value))'"
 
 section "1.4 NetworkPolicies"
 for np in default-deny allow-dns allow-from-frontend allow-same-namespace; do
   check "NetworkPolicy $np exists" k -n $NS get networkpolicy $np
 done
 eq "default-deny blocks Ingress+Egress" "Ingress Egress" k -n $NS get networkpolicy default-deny -o jsonpath='{.spec.policyTypes[*]}'
+check "allow-dns: egress to kube-system/k8s-app=kube-dns on UDP+TCP 53" bash -c \
+  "kubectl -n $NS get networkpolicy allow-dns -o json | jq -e 'any(.spec.egress[]?;
+     ([.ports[]? | select(.port == 53 or .port == \"53\") | .protocol // \"TCP\"] | (index(\"UDP\") != null and index(\"TCP\") != null))
+     and any(.to[]?; .podSelector.matchLabels[\"k8s-app\"] == \"kube-dns\"
+                     and .namespaceSelector.matchLabels[\"kubernetes.io/metadata.name\"] == \"kube-system\"))'"
+check "allow-from-frontend: app=checkout, TCP 80, only from namespaces team=frontend" bash -c \
+  "kubectl -n $NS get networkpolicy allow-from-frontend -o json | jq -e '.spec.podSelector.matchLabels.app == \"checkout\"
+     and (.spec.ingress | length == 1)
+     and all(.spec.ingress[0].from[]; .namespaceSelector.matchLabels.team == \"frontend\")
+     and any(.spec.ingress[0].ports[]?; .port == 80 and (.protocol // \"TCP\") == \"TCP\")'"
 
 section "1.5 Storage"
 eq "StorageClass Retain" "Retain" k get sc fast-retain -o jsonpath='{.reclaimPolicy}'
@@ -34,8 +49,16 @@ eq "StorageClass WaitForFirstConsumer" "WaitForFirstConsumer" k get sc fast-reta
 eq "PVC ledger-data Bound" "Bound" k -n $NS get pvc ledger-data -o jsonpath='{.status.phase}'
 
 section "1.6 OpenCost"
-check "/tmp/cost-by-namespace.json is valid JSON" jq -e .data /tmp/cost-by-namespace.json
-check "/tmp/top-namespace.txt not empty" test -s /tmp/top-namespace.txt
+F16=/tmp/cost-by-namespace.json
+check "cost-by-namespace.json: accumulated (exactly one entry in .data)" jq -e '.data | length == 1' $F16
+check "cost-by-namespace.json: 24h window" jq -e \
+  '.data[0] | to_entries | map(.value.window | ((.end | fromdate) - (.start | fromdate))) | all(. == 86400)' $F16
+check "cost-by-namespace.json: aggregated by namespace" jq -e \
+  '.data[0] | to_entries | map(select(.key | startswith("__") | not)) | length > 0 and all(.key == .value.properties.namespace)' $F16
+check "/tmp/top-namespace.txt exists and is not empty" test -s /tmp/top-namespace.txt
+eq "/tmp/top-namespace.txt names the most expensive namespace" \
+  "$(jq -r '.data[0] | to_entries | map(select(.key | startswith("__") | not)) | max_by(.value.totalCost) | .key' $F16 2>/dev/null)" \
+  bash -c "tr -d '[:space:]' < /tmp/top-namespace.txt"
 
 section "1.7 Right-Sizing"
 eq "Replicas=2" "2" k -n rightsizing get deploy oversized -o jsonpath='{.spec.replicas}'

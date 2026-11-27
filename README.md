@@ -68,7 +68,13 @@ Optional: `argocd`, `flux`, `tkn`, `argo`, `istioctl`, `linkerd`, `crossplane`, 
   otherwise Windows and Docker fight over the RAM.
 - **Mock exams** install many tools at once. On 8 GB, install them task by task as you go and skip
   the tools of tasks you leave out.
-- Tasks that need worker nodes (1.9, 1.12, mock exam 2 task 1) need the full cluster.
+- Tasks that need worker nodes (1.9, 1.12, mock exam 2 task 1) need the full cluster. The nodes
+  themselves are light – on 8 GB the full cluster works fine as long as you install no add-ons.
+
+## Your own files
+
+Keep your practice YAML in `my-work/` (e.g. `my-work/domain-1/`) – the folder is git-ignored,
+so it stays local and out of the exercise repo.
 
 ## Structure of each domain
 
@@ -106,7 +112,7 @@ scoring, pass mark 66 %) → `SOLUTIONS.md`. Ideally use a fresh cluster for eac
 
 ## Progress
 
-- [ ] Domain 1 – Platform architecture
+- [x] Domain 1 – Platform architecture
 - [ ] Domain 2 – GitOps & CD
 - [ ] Domain 3 – Platform APIs
 - [ ] Domain 4 – Observability

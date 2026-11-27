@@ -144,7 +144,8 @@ Apply both overlays with `kubectl apply -k`.
 
 ## Task 1.9 – Dedicated node pool (taints & affinity) ⏱ 6 min
 
-> Needs the full cluster with worker nodes (not `--lite`).
+> Needs the full cluster with worker nodes (`./setup/create-cluster.sh` without `--lite`).
+> Works on 8 GB as long as no add-ons are installed.
 
 Platform components should run on their own nodes.
 1. Label the node `cnpe-worker2` with `pool=platform` and taint it with
