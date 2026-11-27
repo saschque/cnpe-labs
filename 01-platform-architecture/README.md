@@ -94,6 +94,17 @@ kubectl -n team-payments run load --rm -it --image=busybox -- \
 > 💡 The `opencost` Service exposes two ports – one for the API, one for the web UI. Check
 > `kubectl -n opencost get svc opencost` and port-forward the right one. If you get HTML back,
 > you're talking to the UI.
+>
+> 💡 **Reaching OpenCost in the cluster** – two ways:
+> - **From your laptop:** `kubectl -n opencost port-forward svc/opencost <local-port>:<svc-port> &`,
+>   then `curl http://localhost:<local-port>/...`. Stop it later with `kill %1`.
+> - **From inside the cluster:** the Service DNS name is `opencost.opencost.svc.cluster.local`
+>   (or `opencost.opencost` from another namespace), e.g. with a throwaway pod:
+>   `kubectl run curl --rm -it --restart=Never --image=curlimages/curl -- curl -s http://opencost.opencost:<svc-port>/...`
+>
+> On a fresh install OpenCost needs a few minutes of Prometheus data before the API returns
+> costs – empty results right after `install.sh` are normal. Check that the pod is ready with
+> `kubectl -n opencost get pods`.
 
 ---
 
