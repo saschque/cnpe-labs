@@ -4,13 +4,25 @@
 #   ./setup/install.sh all
 set -euo pipefail
 
+# Lite mode (smaller footprint): LITE=1 ./setup/install.sh ...
+# Defaults to on when the cluster has a single node (./setup/create-cluster.sh --lite).
+if [[ -z "${LITE:-}" ]]; then
+  [[ $(kubectl get nodes --no-headers 2>/dev/null | wc -l) -eq 1 ]] && LITE=1 || LITE=0
+fi
+lite() { [[ "$LITE" == "1" ]] && printf '%s\n' "$@"; return 0; }   # prints extra helm args in lite mode
+[[ "$LITE" == "1" ]] && echo "ℹ️  Lite mode: reduced replicas and resource requests"
+
 helm_repo() { helm repo add "$1" "$2" >/dev/null 2>&1 || true; }
 
 install_argocd() {
   helm_repo argo https://argoproj.github.io/argo-helm
   helm repo update argo
   helm upgrade --install argocd argo/argo-cd -n argocd --create-namespace \
-    --set configs.params."server\.insecure"=true --wait
+    --set configs.params."server\.insecure"=true \
+    $(lite --set=dex.enabled=false --set=notifications.enabled=false \
+      --set=controller.resources.requests.cpu=100m --set=controller.resources.requests.memory=256Mi \
+      --set=repoServer.resources.requests.cpu=50m --set=repoServer.resources.requests.memory=128Mi) \
+    --wait
   echo "Argo CD admin password:"
   kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d; echo
 }
@@ -52,7 +64,11 @@ install_gatekeeper() {
   helm_repo gatekeeper https://open-policy-agent.github.io/gatekeeper/charts
   helm repo update gatekeeper
   helm upgrade --install gatekeeper gatekeeper/gatekeeper \
-    -n gatekeeper-system --create-namespace --wait
+    -n gatekeeper-system --create-namespace \
+    $(lite --set=replicas=1 --set=controllerManager.resources.requests.cpu=50m \
+      --set=controllerManager.resources.requests.memory=128Mi --set=audit.resources.requests.cpu=50m \
+      --set=audit.resources.requests.memory=128Mi) \
+    --wait
 }
 
 install_prometheus() {
@@ -63,7 +79,13 @@ install_prometheus() {
     -n monitoring --create-namespace \
     --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \
     --set prometheus.prometheusSpec.ruleSelectorNilUsesHelmValues=false \
-    --set grafana.sidecar.dashboards.searchNamespace=ALL --wait
+    --set grafana.sidecar.dashboards.searchNamespace=ALL \
+    $(lite --set=alertmanager.enabled=false --set=prometheus.prometheusSpec.retention=6h \
+      --set=prometheus.prometheusSpec.scrapeInterval=60s \
+      --set=prometheus.prometheusSpec.resources.requests.memory=256Mi \
+      --set=kubeEtcd.enabled=false --set=kubeControllerManager.enabled=false \
+      --set=kubeScheduler.enabled=false --set=kubeProxy.enabled=false) \
+    --wait
   echo "Grafana: admin / $(kubectl -n monitoring get secret kps-grafana -o jsonpath='{.data.admin-password}' | base64 -d)"
 }
 
@@ -80,7 +102,11 @@ install_istio() {
   helm_repo istio https://istio-release.storage.googleapis.com/charts
   helm repo update istio
   helm upgrade --install istio-base istio/base -n istio-system --create-namespace --wait
-  helm upgrade --install istiod istio/istiod -n istio-system --wait
+  helm upgrade --install istiod istio/istiod -n istio-system \
+    $(lite --set=pilot.resources.requests.cpu=100m --set=pilot.resources.requests.memory=256Mi \
+      --set=pilot.autoscaleEnabled=false --set=global.proxy.resources.requests.cpu=10m \
+      --set=global.proxy.resources.requests.memory=40Mi) \
+    --wait
 }
 
 install_linkerd() {

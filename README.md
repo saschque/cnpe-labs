@@ -45,6 +45,29 @@ cat 01-platform-architecture/README.md
 Requirements: Docker, [kind](https://kind.sigs.k8s.io), kubectl, helm, git, jq.
 Optional: `argocd`, `flux`, `tkn`, `argo`, `istioctl`, `linkerd`, `crossplane`, `gator` CLIs.
 
+## Low on RAM? (8 GB laptops)
+
+```bash
+./setup/create-cluster.sh --lite        # single node instead of three
+./setup/install.sh argocd               # lite settings are used automatically on a single node
+./setup/resources.sh                    # what uses CPU/memory right now?
+./setup/uninstall.sh argocd             # remove a tool once you're done with it
+```
+
+- **Only run what the current domain needs** – the "Tools needed" line at the top of every
+  domain README tells you. Remove tools with `./setup/uninstall.sh` before moving on.
+- **Lite settings** (automatic on a single node, or `LITE=1`): fewer replicas, smaller resource
+  requests, Prometheus without Alertmanager and with short retention, Argo CD without Dex and
+  notifications, Gatekeeper with one replica, a smaller Istio control plane.
+- **Heaviest tools:** kube-prometheus-stack, Istio, Argo CD, Crossplane. Avoid running them all at once.
+- **Start over between domains:** `kind delete cluster --name cnpe && ./setup/create-cluster.sh --lite`
+  takes about a minute and frees everything.
+- **Windows/WSL2:** cap the VM in `%UserProfile%\.wslconfig` (`[wsl2]` → `memory=5GB`, `swap=4GB`),
+  otherwise Windows and Docker fight over the RAM.
+- **Mock exams** install many tools at once. On 8 GB, install them task by task as you go and skip
+  the tools of tasks you leave out.
+- Tasks that need worker nodes (1.9, 1.12, mock exam 2 task 1) need the full cluster.
+
 ## Structure of each domain
 
 ```

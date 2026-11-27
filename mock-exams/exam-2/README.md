@@ -9,6 +9,7 @@ Preparation (before starting the timer):
 ./setup/install.sh argocd flux argo_workflows tekton crossplane kyverno prometheus jaeger_otel
 ./mock-exams/exam-2/setup.sh
 ```
+> Needs the full cluster with worker nodes (task 1 uses `cnpe-worker`) – not `--lite`.
 
 ---
 

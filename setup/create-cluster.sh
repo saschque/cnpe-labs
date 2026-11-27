@@ -2,14 +2,22 @@
 # Creates a local kind cluster for the CNPE exercises.
 set -euo pipefail
 
+# Usage: ./setup/create-cluster.sh [--lite]
+#   --lite  single node (control plane only) – for laptops with little RAM
 CLUSTER_NAME="${CLUSTER_NAME:-cnpe}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG="$SCRIPT_DIR/kind-config.yaml"
+if [[ "${1:-}" == "--lite" ]]; then
+  CONFIG="$(mktemp)"
+  sed '/^  - role: worker/,$d' "$SCRIPT_DIR/kind-config.yaml" > "$CONFIG"   # drop the worker nodes
+  echo "ℹ️  Lite mode: single-node cluster"
+fi
 
 if kind get clusters | grep -qx "$CLUSTER_NAME"; then
   echo "Cluster '$CLUSTER_NAME' already exists."
 else
   cd "$SCRIPT_DIR/.."   # extraMounts paths in kind-config.yaml are relative to the repo root
-  kind create cluster --name "$CLUSTER_NAME" --config "$SCRIPT_DIR/kind-config.yaml"
+  kind create cluster --name "$CLUSTER_NAME" --config "$CONFIG"
 fi
 
 kubectl config use-context "kind-$CLUSTER_NAME"

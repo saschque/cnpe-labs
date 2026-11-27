@@ -131,6 +131,8 @@ Create a Kustomize structure under `/tmp/tenants/`:
 
 ## Task 1.9 – Dedicated node pool (taints & affinity) ⏱ 6 min
 
+> Needs the full cluster with worker nodes (not `--lite`).
+
 Platform components should run on their own nodes.
 1. Label the node `cnpe-worker2` with `pool=platform` and taint it with
    `dedicated=platform:NoSchedule`.
@@ -165,6 +167,8 @@ In namespace `team-payments`:
 ---
 
 ## Task 1.12 – Capacity analysis ⏱ 7 min
+
+> Works best on the full cluster with worker nodes (not `--lite`).
 
 For every node, calculate the sum of the **CPU requests** of all running pods in millicores and
 write it to `/tmp/node-requests.txt` (format: `<node> <millicores>`, one line per node).
