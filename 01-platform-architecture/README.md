@@ -123,18 +123,65 @@ kubectl apply -f 01-platform-architecture/solutions/rightsizing-setup.yaml
 
 ## Task 1.8 – Self-service tenants with Kustomize ⏱ 8 min
 
-Create a Kustomize structure under `/tmp/tenants/`:
+New teams should get a standard namespace setup from one shared template. Build it with
+Kustomize under `/tmp/tenants/`:
 ```
 /tmp/tenants/
-├── base/          # ResourceQuota, LimitRange, default-deny NetworkPolicy, RoleBinding
+├── base/                  # shared template, NO namespace set here
+│   ├── kustomization.yaml
+│   ├── quota.yaml
+│   ├── limitrange.yaml
+│   ├── netpol.yaml
+│   └── rolebinding.yaml
 └── overlays/
-    ├── team-a/    # namespace team-a, quota requests.cpu=2
-    └── team-b/    # namespace team-b, quota requests.cpu=6
+    ├── team-a/
+    │   ├── kustomization.yaml
+    │   └── namespace.yaml
+    └── team-b/
+        ├── kustomization.yaml
+        └── namespace.yaml
 ```
-- The RoleBinding gives the group `<team>-devs` the ClusterRole `edit` in the namespace.
-- Apply both overlays with `kubectl apply -k`.
 
-**Check:** `kubectl auth can-i create deploy -n team-a --as=x --as-group=team-a-devs` → `yes`.
+**Base** – one file per object, without `metadata.namespace`:
+
+| File | Object | Requirements |
+|------|--------|--------------|
+| `quota.yaml` | ResourceQuota `tenant-quota` | `requests.cpu: 1`, `requests.memory: 2Gi`, `pods: 20` |
+| `limitrange.yaml` | LimitRange `tenant-defaults` | Container defaults: request `100m`/`128Mi`, limit `500m`/`512Mi` |
+| `netpol.yaml` | NetworkPolicy `default-deny` | Blocks all **ingress** to all pods |
+| `rolebinding.yaml` | RoleBinding `devs-edit` | ClusterRole `edit` for a Group – the group name is set per team in the overlay |
+| `kustomization.yaml` | – | Lists the four files above under `resources` |
+
+**Overlays** – one per team:
+
+| | team-a | team-b |
+|--|--------|--------|
+| Namespace (created by `namespace.yaml`) | `team-a` | `team-b` |
+| All base objects end up in | `team-a` | `team-b` |
+| `tenant-quota` → `requests.cpu` | `2` | `6` |
+| RoleBinding group | `team-a-devs` | `team-b-devs` |
+
+Each overlay's `kustomization.yaml` uses the base as a resource, adds its `namespace.yaml`, sets
+the namespace for all objects and patches the two team-specific values.
+
+Preview with `kubectl kustomize overlays/team-a`, then apply both overlays with `kubectl apply -k`.
+
+**Check:**
+```bash
+kubectl auth can-i create deploy -n team-a --as=x --as-group=team-a-devs   # yes
+kubectl auth can-i create deploy -n team-b --as=x --as-group=team-a-devs   # no
+kubectl -n team-b get resourcequota tenant-quota -o jsonpath='{.spec.hard.requests\.cpu}'  # 6
+```
+
+> 💡 You don't have to write these files from memory:
+> - Reuse your own YAML from 1.1 (quota, LimitRange) and 1.4 (default-deny) – just drop `namespace:`.
+> - Generate: `kubectl create quota ... --dry-run=client -o yaml`,
+>   `kubectl create rolebinding ... --clusterrole=edit --group=PLACEHOLDER --dry-run=client -o yaml`.
+> - Docs: kubernetes.io → "Declarative Management of Kubernetes Objects Using Kustomize"
+>   (overlays, `namespace`, `patches`).
+>
+> ⚠️ `namespace:` in a kustomization.yaml only sets `metadata.namespace` on the resources – it
+> does **not** create the Namespace. That's what `namespace.yaml` is for.
 
 ---
 
