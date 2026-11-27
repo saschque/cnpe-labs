@@ -91,6 +91,10 @@ kubectl -n team-payments run load --rm -it --image=busybox -- \
    `/tmp/top-namespace.txt`.
 4. Bonus: aggregate by the label `team` instead.
 
+> 💡 The `opencost` Service exposes two ports – one for the API, one for the web UI. Check
+> `kubectl -n opencost get svc opencost` and port-forward the right one. If you get HTML back,
+> you're talking to the UI.
+
 ---
 
 ## Task 1.7 – Right-sizing ⏱ 6 min
