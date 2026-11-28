@@ -60,7 +60,18 @@ section "2.10 AppProject"
 check "AppProject team-a exists" k -n argocd get appproject team-a
 eq "Destination only team-a-*" "team-a-*" k -n argocd get appproject team-a -o jsonpath='{.spec.destinations[0].namespace}'
 eq "Only Namespace cluster-scoped" "Namespace" k -n argocd get appproject team-a -o jsonpath='{.spec.clusterResourceWhitelist[*].kind}'
+eq "Destination server in-cluster" "https://kubernetes.default.svc" k -n argocd get appproject team-a -o jsonpath='{.spec.destinations[0].server}'
+check "Source only argocd-example-apps" bash -c \
+  "[[ \$(kubectl -n argocd get appproject team-a -o jsonpath='{.spec.sourceRepos[*]}') == https://github.com/argoproj/argocd-example-apps* ]]"
+eq "Blacklist ResourceQuota, LimitRange, NetworkPolicy" "LimitRange NetworkPolicy ResourceQuota" \
+  bash -c "kubectl -n argocd get appproject team-a -o jsonpath='{.spec.namespaceResourceBlacklist[*].kind}' | tr ' ' '\n' | sort | xargs"
+check "Role ci may sync the project's Applications" bash -c \
+  "kubectl -n argocd get appproject team-a -o json | jq -e '.spec.roles[]? | select(.name == \"ci\") | .policies[]
+     | gsub(\" \"; \"\") | test(\"^p,proj:team-a:ci,applications,(sync|\\\\*),team-a/\\\\*,allow$\")' | grep -q true"
 eq "team-a-guestbook Synced" "Synced" app team-a-guestbook '{.status.sync.status}'
+eq "team-a-guestbook Healthy" "Healthy" app team-a-guestbook '{.status.health.status}'
+check "team-a-default rejected (InvalidSpecError)" bash -c \
+  "kubectl -n argocd get application team-a-default -o jsonpath='{.status.conditions[*].type}' | grep -q InvalidSpecError"
 
 section "2.11 ApplicationSet Git directories"
 check "Application helm-guestbook created" k -n argocd get application helm-guestbook

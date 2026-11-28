@@ -148,8 +148,11 @@ Create an `AppProject` `team-a` in namespace `argocd`:
   override platform guardrails)
 - Project role `ci` with permission to **sync** the project's Applications
 
-Test: An Application in project `team-a` with destination namespace `default` must be rejected
-with an error message. One with destination `team-a-guestbook` works.
+Then create two Applications in project `team-a` (source path `guestbook`, auto-sync, namespace
+created automatically):
+- `team-a-guestbook` with destination namespace `team-a-guestbook` – must be `Synced`/`Healthy`
+- `team-a-default` with destination namespace `default` – must be rejected by the project
+  (check its conditions)
 
 ---
 
