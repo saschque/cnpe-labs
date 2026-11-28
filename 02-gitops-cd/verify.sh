@@ -66,6 +66,12 @@ section "2.11 ApplicationSet Git directories"
 check "Application helm-guestbook created" k -n argocd get application helm-guestbook
 check "Application kustomize-guestbook created" k -n argocd get application kustomize-guestbook
 check "jsonnet-guestbook excluded" bash -c "! kubectl -n argocd get application jsonnet-guestbook"
+for a in helm-guestbook kustomize-guestbook; do
+  eq "$a: destination namespace dir-$a" "dir-$a" app $a '{.spec.destination.namespace}'
+  check "$a: auto-sync enabled" bash -c \
+    "kubectl -n argocd get application $a -o json | jq -e '.spec.syncPolicy.automated != null and .spec.syncPolicy.automated.enabled != false'"
+  eq "$a: Synced" "Synced" app $a '{.status.sync.status}'
+done
 
 section "2.12 Flux Staging"
 eq "HPA minReplicas=3" "3" k -n podinfo-staging get hpa podinfo -o jsonpath='{.spec.minReplicas}'
