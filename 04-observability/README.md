@@ -28,6 +28,8 @@ podinfo exposes Prometheus metrics at `:9898/metrics`.
 
 ## Task 4.1 – ServiceMonitor ⏱ 5 min
 
+📖 Docs: [Prometheus Operator getting started](https://prometheus-operator.dev/docs/developer/getting-started/) · [API reference](https://prometheus-operator.dev/docs/api-reference/api/)
+
 1. Create a `ServiceMonitor` `podinfo` in namespace `demo` that scrapes the service `podinfo`
    (port name `http`, path `/metrics`) every 15 s.
 2. Check in Prometheus under *Status → Targets* that the target is `UP`.
@@ -37,6 +39,8 @@ podinfo exposes Prometheus metrics at `:9898/metrics`.
 ---
 
 ## Task 4.2 – PromQL ⏱ 8 min
+
+📖 Docs: [PromQL basics](https://prometheus.io/docs/prometheus/latest/querying/basics/) · [Functions](https://prometheus.io/docs/prometheus/latest/querying/functions/) · [Operators](https://prometheus.io/docs/prometheus/latest/querying/operators/)
 
 Write PromQL queries and save them to `/tmp/promql.txt` (one per line):
 1. CPU usage (cores) per namespace, last 5 minutes
@@ -49,6 +53,8 @@ Write PromQL queries and save them to `/tmp/promql.txt` (one per line):
 ---
 
 ## Task 4.3 – Alerting with PrometheusRule ⏱ 8 min
+
+📖 Docs: [Alerting rules](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) · [Recording rules](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/) · [Alerting with the Operator](https://prometheus-operator.dev/docs/developer/alerting/)
 
 Create a `PrometheusRule` `platform-alerts` in namespace `monitoring` with:
 1. `PodCrashLooping` – severity `critical`: more than 3 restarts of a container in 15 min, for 5 min.
@@ -64,6 +70,8 @@ Bonus: configure an `AlertmanagerConfig` that sends `critical` alerts to a webho
 
 ## Task 4.4 – Grafana dashboard as code ⏱ 6 min
 
+📖 Docs: [Dashboard JSON model](https://grafana.com/docs/grafana/latest/visualizations/dashboards/build-dashboards/view-dashboard-json-model/) · [Provisioning](https://grafana.com/docs/grafana/latest/administration/provisioning/)
+
 Create a ConfigMap `podinfo-dashboard` in namespace `monitoring` with the label
 `grafana_dashboard: "1"` that contains a dashboard "Podinfo" with two panels: request rate and
 p95 latency. Check that it shows up in Grafana automatically.
@@ -71,6 +79,8 @@ p95 latency. Check that it shows up in Grafana automatically.
 ---
 
 ## Task 4.5 – Tracing with OpenTelemetry & Jaeger ⏱ 10 min
+
+📖 Docs: [Collector configuration](https://opentelemetry.io/docs/collector/configuration/) · [OTLP exporter env vars](https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/) · [Jaeger](https://www.jaegertracing.io/docs/latest/)
 
 1. Deploy an **OpenTelemetry Collector** (Deployment + ConfigMap + Service) `otel-collector`
    in namespace `observability`:
@@ -85,6 +95,8 @@ p95 latency. Check that it shows up in Grafana automatically.
 
 ## Task 4.6 – DORA / deployment metrics ⏱ 8 min
 
+📖 Docs: [Argo CD metrics](https://argo-cd.readthedocs.io/en/stable/operator-manual/metrics/) · [DORA metrics](https://dora.dev/guides/dora-metrics/) · [PromQL functions](https://prometheus.io/docs/prometheus/latest/querying/functions/)
+
 Argo CD exports Prometheus metrics (e.g. `argocd_app_sync_total`, `argocd_app_info`).
 1. Create a ServiceMonitor for the Argo CD application controller metrics.
 2. Write queries for:
@@ -96,6 +108,8 @@ Argo CD exports Prometheus metrics (e.g. `argocd_app_sync_total`, `argocd_app_in
 ---
 
 ## Task 4.7 – Incident scenarios ⏱ 3–5 min each
+
+📖 Docs: [Debug pods](https://kubernetes.io/docs/tasks/debug/debug-application/debug-pods/) · [Debug services](https://kubernetes.io/docs/tasks/debug/debug-application/debug-service/) · [Debug running pods](https://kubernetes.io/docs/tasks/debug/debug-application/debug-running-pod/)
 
 ```bash
 kubectl apply -f 04-observability/scenarios/incidents.yaml
@@ -122,6 +136,8 @@ Useful: `kubectl get events --sort-by=.lastTimestamp`, `kubectl describe`,
 
 ## Task 4.8 – PodMonitor ⏱ 5 min
 
+📖 Docs: [PodMonitor](https://prometheus-operator.dev/docs/developer/getting-started/) · [API reference](https://prometheus-operator.dev/docs/api-reference/api/) · [relabel_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/)
+
 Not every app has a service. Scrape the podinfo pods in namespace `demo` **directly**:
 1. Name the container port 9898 of the Deployment `podinfo` `http-metrics`.
 2. Create a `PodMonitor` `podinfo-pods` that scrapes pods with `app=podinfo` on this port every
@@ -130,6 +146,8 @@ Not every app has a service. Scrape the podinfo pods in namespace `demo` **direc
 ---
 
 ## Task 4.9 – Analyzing logs ⏱ 6 min
+
+📖 Docs: [Logging](https://kubernetes.io/docs/concepts/cluster-administration/logging/) · [kubectl logs](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_logs/)
 
 ```bash
 kubectl apply -f 04-observability/solutions/4.9-logs-setup.yaml
@@ -143,6 +161,8 @@ In namespace `logs-demo`, three `chatty` pods write INFO, WARN and ERROR lines.
 ---
 
 ## Task 4.10 – SLOs and burn-rate alerts ⏱ 10 min
+
+📖 Docs: [Alerting on SLOs](https://sre.google/workbook/alerting-on-slos/) · [Recording rules](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/) · [Alerting rules](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/)
 
 podinfo has an availability SLO of **99.9 %** (share of non-5xx requests).
 Create a `PrometheusRule` `podinfo-slo` in namespace `monitoring` with:
@@ -158,6 +178,8 @@ Explain: Why two windows per alert?
 
 ## Task 4.11 – RED metrics from traces ⏱ 8 min
 
+📖 Docs: [Collector configuration (connectors)](https://opentelemetry.io/docs/collector/configuration/) · [spanmetrics connector](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/connector/spanmetricsconnector) · [API reference](https://prometheus-operator.dev/docs/api-reference/api/)
+
 Extend the OTel Collector from 4.5:
 1. Add the `spanmetrics` **connector**: it receives spans from the traces pipeline and turns
    them into metrics (requests, errors, duration).
@@ -170,6 +192,8 @@ Extend the OTel Collector from 4.5:
 ---
 
 ## Task 4.12 – Incident scenarios, round 2 ⏱ 3–5 min each
+
+📖 Docs: [Debug pods](https://kubernetes.io/docs/tasks/debug/debug-application/debug-pods/) · [Probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) · [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) · [DNS debugging](https://kubernetes.io/docs/tasks/administer-cluster/dns-debugging-resolution/) · [Network policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/)
 
 ```bash
 kubectl apply -f 04-observability/scenarios/incidents-2.yaml

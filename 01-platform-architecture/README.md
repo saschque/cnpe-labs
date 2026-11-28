@@ -11,6 +11,8 @@ Tools needed: `./setup/install.sh prometheus opencost` (only for 1.6)
 
 ## Task 1.1 – Tenant namespace with quota ⏱ 6 min
 
+📖 Docs: [Resource quotas](https://kubernetes.io/docs/concepts/policy/resource-quotas/) · [Limit ranges](https://kubernetes.io/docs/concepts/policy/limit-range/)
+
 The **payments** team gets its own namespace.
 
 1. Create the namespace `team-payments` with the labels `team=payments` and `tier=prod`.
@@ -27,6 +29,8 @@ The **payments** team gets its own namespace.
 ---
 
 ## Task 1.2 – Horizontal Pod Autoscaler ⏱ 5 min
+
+📖 Docs: [HPA](https://kubernetes.io/docs/concepts/workloads/autoscaling/horizontal-pod-autoscale/) · [HPA walkthrough](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale-walkthrough/)
 
 1. In namespace `team-payments`, create a Deployment `checkout` (image
    `registry.k8s.io/hpa-example`, 1 replica, request `cpu: 200m`, port 80) and a ClusterIP
@@ -45,6 +49,8 @@ kubectl -n team-payments run load --rm -it --image=busybox -- \
 
 ## Task 1.3 – Availability: PriorityClass & PodDisruptionBudget ⏱ 5 min
 
+📖 Docs: [Pod priority](https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/) · [PodDisruptionBudget](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) · [Topology spread](https://kubernetes.io/docs/concepts/scheduling-eviction/topology-spread-constraints/)
+
 1. Create a `PriorityClass` `platform-critical` with value `1000000`, not the global default,
    description "Critical platform components".
 2. Patch the Deployment `checkout` to use this PriorityClass.
@@ -56,6 +62,8 @@ kubectl -n team-payments run load --rm -it --image=busybox -- \
 ---
 
 ## Task 1.4 – Network isolation between tenants ⏱ 7 min
+
+📖 Docs: [Network policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/)
 
 1. In namespace `team-payments`, create a NetworkPolicy `default-deny` that blocks **all**
    ingress and egress traffic.
@@ -72,6 +80,8 @@ kubectl -n team-payments run load --rm -it --image=busybox -- \
 
 ## Task 1.5 – Storage ⏱ 5 min
 
+📖 Docs: [Storage classes](https://kubernetes.io/docs/concepts/storage/storage-classes/) · [Persistent volumes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/) · [Volumes](https://kubernetes.io/docs/concepts/storage/volumes/)
+
 1. Create a StorageClass `fast-retain` with the cluster's provisioner (in kind:
    `rancher.io/local-path`), `reclaimPolicy: Retain`, `volumeBindingMode: WaitForFirstConsumer`
    and `allowVolumeExpansion: true`.
@@ -83,6 +93,8 @@ kubectl -n team-payments run load --rm -it --image=busybox -- \
 ---
 
 ## Task 1.6 – Cost with OpenCost ⏱ 8 min
+
+📖 Docs: [OpenCost API](https://opencost.io/docs/integrations/api/) · [API examples](https://opencost.io/docs/integrations/api-examples/)
 
 1. Make sure OpenCost is running (`./setup/install.sh prometheus opencost`).
 2. Use the OpenCost API to get the cost of the last 24 h, **aggregated per namespace**, and
@@ -110,6 +122,8 @@ kubectl -n team-payments run load --rm -it --image=busybox -- \
 
 ## Task 1.7 – Right-sizing ⏱ 6 min
 
+📖 Docs: [Resource management](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/) · [kubectl top pod](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_top/kubectl_top_pod/)
+
 An oversized Deployment runs in namespace `rightsizing`:
 ```bash
 kubectl apply -f 01-platform-architecture/solutions/rightsizing-setup.yaml
@@ -122,6 +136,8 @@ kubectl apply -f 01-platform-architecture/solutions/rightsizing-setup.yaml
 ---
 
 ## Task 1.8 – Self-service tenants with Kustomize ⏱ 8 min
+
+📖 Docs: [Kustomize](https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/) · [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/)
 
 Create a Kustomize base in `/tmp/tenants/base` and two overlays in
 `/tmp/tenants/overlays/team-a` and `/tmp/tenants/overlays/team-b`.
@@ -144,6 +160,8 @@ Apply both overlays with `kubectl apply -k`.
 
 ## Task 1.9 – Dedicated node pool (taints & affinity) ⏱ 6 min
 
+📖 Docs: [Taints & tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) · [Node affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/)
+
 > Needs the full cluster with worker nodes (`./setup/create-cluster.sh` without `--lite`).
 > Works on 8 GB as long as no add-ons are installed.
 
@@ -162,6 +180,8 @@ Platform components should run on their own nodes.
 
 ## Task 1.10 – StatefulSet with a headless service ⏱ 7 min
 
+📖 Docs: [StatefulSets](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/) · [Headless services](https://kubernetes.io/docs/concepts/services-networking/service/) · [DNS for pods & services](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/)
+
 1. In namespace `data`, create a headless service `kv` (port 6379).
 2. Create a StatefulSet `kv` with 3 replicas (image `redis:7`) that uses this service and mounts
    one volume `data` (256Mi, StorageClass `standard`) per pod at `/data` via `volumeClaimTemplates`.
@@ -172,6 +192,8 @@ Platform components should run on their own nodes.
 
 ## Task 1.11 – Scoped quotas ⏱ 5 min
 
+📖 Docs: [Quota scopes](https://kubernetes.io/docs/concepts/policy/resource-quotas/) · [Pod QoS classes](https://kubernetes.io/docs/concepts/workloads/pods/pod-qos/)
+
 In namespace `team-payments`:
 1. Quota `critical-quota`: at most **4 pods** with the PriorityClass `platform-critical`
    (`scopeSelector`).
@@ -181,6 +203,8 @@ In namespace `team-payments`:
 ---
 
 ## Task 1.12 – Capacity analysis ⏱ 7 min
+
+📖 Docs: [Resource management](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/) · [kubectl quick reference](https://kubernetes.io/docs/reference/kubectl/quick-reference/) · [JSONPath](https://kubernetes.io/docs/reference/kubectl/jsonpath/)
 
 > Works best on the full cluster with worker nodes (not `--lite`).
 

@@ -18,6 +18,8 @@ Tools needed: `./setup/install.sh crossplane kyverno argo_workflows`
 
 ## Task 3.1 – Design a CRD ⏱ 10 min
 
+📖 Docs: [CustomResourceDefinitions](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/)
+
 Create a CRD for the platform API `databases.platform.example.org`:
 - Kind `Database`, plural `databases`, short name `db`, category `platform`, **namespaced**
 - Version `v1alpha1` (served, storage)
@@ -35,6 +37,8 @@ Test: An object with `engine: oracle` or `storageGB: 500` must be rejected.
 
 ## Task 3.2 – CEL validation & versioning ⏱ 7 min
 
+📖 Docs: [CRD validation rules](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/) · [CRD versioning](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definition-versioning/) · [CEL](https://kubernetes.io/docs/reference/using-api/cel/)
+
 Extend the CRD from 3.1:
 1. Rule via `x-kubernetes-validations`: if `highAvailability: true`, then `storageGB >= 20` is
    required. Error message: "HA requires at least 20 GB".
@@ -44,6 +48,8 @@ Extend the CRD from 3.1:
 ---
 
 ## Task 3.3 – Crossplane: your own platform API with a Composition ⏱ 15 min
+
+📖 Docs: [XRDs](https://docs.crossplane.io/latest/composition/composite-resource-definitions/) · [Compositions](https://docs.crossplane.io/latest/composition/compositions/) · [Patch & transform](https://docs.crossplane.io/latest/guides/function-patch-and-transform/)
 
 Developers should be able to order a web app with a single object:
 
@@ -72,6 +78,8 @@ spec:
 
 ## Task 3.4 – Crossplane troubleshooting ⏱ 7 min
 
+📖 Docs: [Troubleshooting](https://docs.crossplane.io/latest/guides/troubleshoot-crossplane/) · [Crossplane CLI](https://docs.crossplane.io/cli/latest/command-reference/)
+
 ```bash
 kubectl apply -f 03-platform-apis/solutions/3.4-broken-webapp.yaml
 ```
@@ -82,6 +90,8 @@ The WebApp `broken` does not become `Ready`. Find the cause(s). Useful commands:
 ---
 
 ## Task 3.5 – Working with operators ⏱ 6 min
+
+📖 Docs: [Operator pattern](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/) · [kubectl explain](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_explain/) · [argocd-cmd-params-cm](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cmd-params-cm-yaml/)
 
 Crossplane, Argo CD, Flux, Kyverno … are all operators. Answer using `kubectl`:
 1. Which CRDs does Argo CD ship? (`kubectl api-resources --api-group=argoproj.io`)
@@ -96,6 +106,8 @@ Crossplane, Argo CD, Flux, Kyverno … are all operators. Answer using `kubectl`
 
 ## Task 3.6 – Self-service namespaces with Kyverno `generate` ⏱ 8 min
 
+📖 Docs: [Kyverno generate](https://kyverno.io/docs/policy-types/cluster-policy/generate/)
+
 When a developer creates a namespace with the labels `platform.example.org/tenant=true` and
 `team=<name>`, the platform should **automatically** create:
 - a `ResourceQuota` `tenant-quota` (requests.cpu 2, requests.memory 4Gi)
@@ -107,6 +119,8 @@ The generated resources should be kept in sync (`synchronize: true`).
 ---
 
 ## Task 3.7 – Self-service workflow with Argo Workflows ⏱ 10 min
+
+📖 Docs: [Kubernetes resources](https://argo-workflows.readthedocs.io/en/latest/walk-through/kubernetes-resources/) · [Service accounts](https://argo-workflows.readthedocs.io/en/latest/service-accounts/) · [Workflow RBAC](https://argo-workflows.readthedocs.io/en/latest/workflow-rbac/)
 
 Create a `WorkflowTemplate` `provision-tenant` in namespace `argo` with the parameters `team` and
 `cpu`. The workflow should:
@@ -120,6 +134,8 @@ The workflow's ServiceAccount needs the right permissions for this – create th
 
 ## Task 3.8 – RBAC for the platform API ⏱ 5 min
 
+📖 Docs: [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/)
+
 Developers in the group `team-a-devs` should, in namespace `team-a`,
 - be allowed to **create, update, delete and read** `webapps`,
 - only be allowed to **read** `deployments` and `services`.
@@ -131,6 +147,8 @@ Create the `Role` `webapp-author` and a `RoleBinding`, and check both cases with
 # More exercises
 
 ## Task 3.9 – Size profiles via map transform & composition selector ⏱ 12 min
+
+📖 Docs: [Patch & transform](https://docs.crossplane.io/latest/guides/function-patch-and-transform/) · [Composite resources](https://docs.crossplane.io/latest/composition/composite-resources/) · [XRDs](https://docs.crossplane.io/latest/composition/composite-resource-definitions/)
 
 Instead of replicas, developers should only specify a **size**.
 1. Extend the XRD `webapps.platform.example.org` with the optional field `spec.size`
@@ -147,6 +165,8 @@ Instead of replicas, developers should only specify a **size**.
 
 ## Task 3.10 – Reporting status back ⏱ 5 min
 
+📖 Docs: [Patch & transform](https://docs.crossplane.io/latest/guides/function-patch-and-transform/) · [XRDs](https://docs.crossplane.io/latest/composition/composite-resource-definitions/)
+
 Extend `webapp-sized` so that the Deployment's `status.availableReplicas` ends up in the WebApp's
 `status.availableReplicas` (`ToCompositeFieldPath`). Add a printer column `READY` for it to the
 XRD. Check with `kubectl -n team-a get webapp catalog`.
@@ -154,6 +174,8 @@ XRD. Check with `kubectl -n team-a get webapp catalog`.
 ---
 
 ## Task 3.11 – Guardrails for the platform API ⏱ 7 min
+
+📖 Docs: [Kyverno validate](https://kyverno.io/docs/policy-types/cluster-policy/validate/)
 
 Create a Kyverno `ClusterPolicy` `webapp-guardrails` (Enforce) for `WebApp` objects:
 1. In namespaces with the label `env=dev`, at most `replicas: 2` and only `size: small` or
@@ -165,6 +187,8 @@ Test with `kubectl apply --dry-run=server`.
 ---
 
 ## Task 3.12 – Package lifecycle of an operator ⏱ 8 min
+
+📖 Docs: [Functions](https://docs.crossplane.io/latest/packages/functions/) · [Providers (revisions)](https://docs.crossplane.io/latest/packages/providers/)
 
 Crossplane packages (providers, functions, configurations) are rolled out through revisions.
 1. List the `FunctionRevision`s of `function-patch-and-transform`. Which one is active?

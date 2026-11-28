@@ -14,6 +14,8 @@ Tools needed: `./setup/install.sh istio kyverno gatekeeper tekton`
 
 ## Task 5.1 – mTLS with Istio ⏱ 8 min
 
+📖 Docs: [mTLS migration](https://istio.io/latest/docs/tasks/security/authentication/mtls-migration/) · [PeerAuthentication](https://istio.io/latest/docs/reference/config/security/peer_authentication/)
+
 1. Create the namespaces `shop` (with sidecar injection) and `legacy` (without).
 2. In both namespaces, deploy `httpbin` (image `kennethreitz/httpbin`, port 80, service
    `httpbin`) and a `curl` client (Deployment `sleep`, image `curlimages/curl`, command
@@ -25,6 +27,8 @@ Tools needed: `./setup/install.sh istio kyverno gatekeeper tekton`
 
 ## Task 5.2 – Istio AuthorizationPolicy ⏱ 7 min
 
+📖 Docs: [HTTP authorization](https://istio.io/latest/docs/tasks/security/authorization/authz-http/) · [AuthorizationPolicy](https://istio.io/latest/docs/reference/config/security/authorization-policy/)
+
 In namespace `shop`:
 1. Create an `AuthorizationPolicy` `deny-all` (empty spec) – nothing works anymore.
 2. Create an `AuthorizationPolicy` `allow-sleep-get` that, for `app=httpbin`, only allows
@@ -35,6 +39,8 @@ In namespace `shop`:
 
 ## Task 5.3 – Linkerd (alternative) ⏱ 6 min
 
+📖 Docs: [Restricting access](https://linkerd.io/docs/tasks/restricting-access/) · [Automatic mTLS](https://linkerd.io/docs/features/automatic-mtls/) · [Authorization policy](https://linkerd.io/docs/reference/authorization-policy/)
+
 In case the exam uses Linkerd instead of Istio:
 1. Inject Linkerd into the namespace `mesh-demo` (annotation).
 2. Check with `linkerd viz edges` / `linkerd diagnostics` or `linkerd check --proxy` that mTLS is active.
@@ -44,6 +50,8 @@ In case the exam uses Linkerd instead of Istio:
 ---
 
 ## Task 5.4 – RBAC & ServiceAccounts ⏱ 6 min
+
+📖 Docs: [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) · [Service accounts](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/) · [kubectl create token](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_create/kubectl_create_token/)
 
 1. Create the ServiceAccount `deployer` in namespace `ci`.
 2. In the namespaces `gb-dev` and `gb-staging`, it may `get/list/patch/update` Deployments but
@@ -57,6 +65,8 @@ In case the exam uses Linkerd instead of Istio:
 
 ## Task 5.5 – Pod Security Admission ⏱ 4 min
 
+📖 Docs: [Pod Security Admission](https://kubernetes.io/docs/concepts/security/pod-security-admission/) · [Pod Security Standards](https://kubernetes.io/docs/concepts/security/pod-security-standards/) · [Namespace labels](https://kubernetes.io/docs/tasks/configure-pod-container/enforce-standards-namespace-labels/)
+
 1. Create the namespace `secure-apps` and set PSA labels: `enforce=baseline`, `warn=restricted`,
    `audit=restricted` (each with version `latest`).
 2. Try to create a privileged pod – it must be rejected.
@@ -65,6 +75,8 @@ In case the exam uses Linkerd instead of Istio:
 ---
 
 ## Task 5.6 – Kyverno policies ⏱ 12 min
+
+📖 Docs: [Validate](https://kyverno.io/docs/policy-types/cluster-policy/validate/) · [Mutate](https://kyverno.io/docs/policy-types/cluster-policy/mutate/) · [Policy reports](https://kyverno.io/docs/guides/reports/) · [Exceptions](https://kyverno.io/docs/guides/exceptions/)
 
 Create the following `ClusterPolicy`s:
 1. `require-team-label` (**Enforce**): Deployments must have the label `team`.
@@ -82,6 +94,8 @@ Create the following `ClusterPolicy`s:
 
 ## Task 5.7 – OPA Gatekeeper ⏱ 10 min
 
+📖 Docs: [Gatekeeper how-to](https://open-policy-agent.github.io/gatekeeper/website/docs/howto/) · [Audit](https://open-policy-agent.github.io/gatekeeper/website/docs/audit/) · [Enforcement actions](https://open-policy-agent.github.io/gatekeeper/website/docs/violations/)
+
 1. Create a `ConstraintTemplate` `K8sRequiredLabels` (Rego) that checks whether certain labels
    are present (parameter: list `labels`).
 2. Create a constraint `ns-must-have-owner` that requires the label `owner` on **namespaces** –
@@ -95,6 +109,8 @@ Create the following `ClusterPolicy`s:
 
 ## Task 5.8 – Audit trail ⏱ 5 min
 
+📖 Docs: [Auditing](https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/)
+
 The kind cluster writes an API audit log (see `setup/audit-policy.yaml`).
 1. Delete a Deployment and find the audit entry: who deleted what, and when?
 2. Find all changes to RoleBindings in the last hour.
@@ -104,6 +120,8 @@ The kind cluster writes an API audit log (see `setup/audit-policy.yaml`).
 ---
 
 ## Task 5.9 – Security scanning in the pipeline ⏱ 12 min
+
+📖 Docs: [Trivy](https://trivy.dev/docs/latest/guide/) · [Syft](https://github.com/anchore/syft) · [Kyverno CLI](https://kyverno.io/docs/kyverno-cli/reference/kyverno/) · [Tekton pipelines](https://tekton.dev/docs/pipelines/pipelines/) · [Verify images](https://kyverno.io/docs/policy-types/cluster-policy/verify-images/overview/)
 
 Extend the Tekton pipeline from 2.7 (namespace `ci`) with:
 1. Task `trivy-scan`: scans an image (parameter `image`) with `aquasec/trivy` and **fails**
@@ -121,6 +139,8 @@ Extend the Tekton pipeline from 2.7 (namespace `ci`) with:
 
 ## Task 5.10 – Egress control with Istio ⏱ 8 min
 
+📖 Docs: [Egress control](https://istio.io/latest/docs/tasks/traffic-management/egress/egress-control/) · [Sidecar](https://istio.io/latest/docs/reference/config/networking/sidecar/) · [ServiceEntry](https://istio.io/latest/docs/reference/config/networking/service-entry/)
+
 Pods in namespace `shop` should only reach known external destinations.
 1. Create a `Sidecar` resource `default` in namespace `shop` with
    `outboundTrafficPolicy.mode: REGISTRY_ONLY` (only destinations from the service registry allowed).
@@ -130,6 +150,8 @@ Pods in namespace `shop` should only reach known external destinations.
 ---
 
 ## Task 5.11 – Pod Security Standards with Kyverno ⏱ 6 min
+
+📖 Docs: [Kyverno validate (podSecurity)](https://kyverno.io/docs/policy-types/cluster-policy/validate/) · [Pod Security Standards](https://kubernetes.io/docs/concepts/security/pod-security-standards/)
 
 PSA is coarse-grained per namespace. Implement the standards with Kyverno in a more granular way:
 1. `ClusterPolicy` `pss-restricted` (Enforce): pods in namespaces with the label
@@ -143,6 +165,8 @@ PSA is coarse-grained per namespace. Implement the standards with Kyverno in a m
 
 ## Task 5.12 – Gatekeeper mutation & `gator` ⏱ 8 min
 
+📖 Docs: [Mutation](https://open-policy-agent.github.io/gatekeeper/website/docs/mutation/) · [gator CLI](https://open-policy-agent.github.io/gatekeeper/website/docs/gator/)
+
 1. Create a Gatekeeper `Assign` mutation `always-pull` that sets `imagePullPolicy: Always` for
    every container in all pods in namespace `shop`.
 2. Create an `AssignMetadata` mutation `owner-label` that adds the label `owner: platform` to
@@ -153,6 +177,8 @@ PSA is coarse-grained per namespace. Implement the standards with Kyverno in a m
 ---
 
 ## Task 5.13 – RBAC audit ⏱ 8 min
+
+📖 Docs: [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) · [kubectl auth can-i](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_auth/kubectl_auth_can-i/)
 
 ```bash
 kubectl apply -f 05-security-policy/solutions/5.13-setup.yaml
