@@ -1,4 +1,4 @@
-# CNPE Labs – Practice exercises for the Certified Cloud Native Platform Engineer
+# CNPE Labs – Practice exercises for the Certified Cloud Native Platform Engineer  
 
 Hands-on exercises for the **CNPE** exam by the Linux Foundation / CNCF.
 The exam is **performance-based** (about 15–20 tasks in 120 minutes in a remote Linux
