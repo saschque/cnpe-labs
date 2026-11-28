@@ -17,6 +17,8 @@ Public example repos:
 
 ## Task 2.1 – Argo CD Application ⏱ 6 min
 
+📖 Docs: [Application spec](https://argo-cd.readthedocs.io/en/stable/user-guide/application-specification/) · [Automated sync](https://argo-cd.readthedocs.io/en/stable/user-guide/auto_sync/) · [Sync options](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/)
+
 Create an Argo CD `Application` named `guestbook` in namespace `argocd`:
 - Source: `argocd-example-apps`, path `guestbook`, revision `HEAD`
 - Destination: in-cluster, namespace `guestbook` (should be created automatically)
@@ -29,6 +31,8 @@ watch Argo CD restore it.
 
 ## Task 2.2 – ApplicationSet for multiple environments ⏱ 8 min
 
+📖 Docs: [List generator](https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/Generators-List/) · [ApplicationSet template](https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/Template/)
+
 Create an `ApplicationSet` `guestbook-envs` that uses a **list generator** to create three
 Applications: `guestbook-dev`, `guestbook-staging`, `guestbook-prod`.
 - Source: path `helm-guestbook`
@@ -39,6 +43,8 @@ Applications: `guestbook-dev`, `guestbook-staging`, `guestbook-prod`.
 ---
 
 ## Task 2.3 – Sync waves & hooks ⏱ 8 min
+
+📖 Docs: [Sync phases & waves](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-waves/) · [Resource hooks](https://argo-cd.readthedocs.io/en/stable/user-guide/resource_hooks/)
 
 `solutions/2.3-waves/manifests.yaml` contains a ConfigMap, a Deployment and two Jobs without
 annotations. Add Argo CD annotations so that a sync runs in this order:
@@ -62,6 +68,8 @@ Answer: What happens to the Deployment if `db-migrate` fails?
 
 ## Task 2.4 – Flux: GitRepository + Kustomization ⏱ 6 min
 
+📖 Docs: [GitRepository](https://fluxcd.io/flux/components/source/gitrepositories/) · [Kustomization](https://fluxcd.io/flux/components/kustomize/kustomizations/)
+
 1. In namespace `flux-system`, create a `GitRepository` `podinfo`
    (URL `https://github.com/stefanprodan/podinfo`, branch `master`, interval 1m).
 2. Create a Flux `Kustomization` `podinfo` that deploys the path `./kustomize` into the namespace
@@ -73,6 +81,8 @@ Answer: What happens to the Deployment if `db-migrate` fails?
 
 ## Task 2.5 – Flux: HelmRelease ⏱ 6 min
 
+📖 Docs: [HelmRepository](https://fluxcd.io/flux/components/source/helmrepositories/) · [HelmRelease](https://fluxcd.io/flux/components/helm/helmreleases/)
+
 1. Create a `HelmRepository` of type **OCI** `podinfo` for `oci://ghcr.io/stefanprodan/charts`.
 2. Create a `HelmRelease` `podinfo-helm` in namespace `podinfo-helm`, chart `podinfo`, version
    `>=6.0.0`, with the values `replicaCount: 2` and `ui.message: "Hello CNPE"`.
@@ -81,6 +91,8 @@ Answer: What happens to the Deployment if `db-migrate` fails?
 ---
 
 ## Task 2.6 – Troubleshooting: app stuck OutOfSync/Degraded ⏱ 7 min
+
+📖 Docs: [Troubleshooting](https://argo-cd.readthedocs.io/en/stable/operator-manual/troubleshooting/) · [argocd app get](https://argo-cd.readthedocs.io/en/stable/user-guide/commands/argocd_app_get/) · [Sync options](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/)
 
 ```bash
 kubectl apply -f 02-gitops-cd/solutions/2.6-broken-app.yaml
@@ -91,6 +103,8 @@ The Application `broken-app` does not sync. Find and fix **all** errors until it
 ---
 
 ## Task 2.7 – Tekton pipeline ⏱ 10 min
+
+📖 Docs: [Tasks](https://tekton.dev/docs/pipelines/tasks/) · [Pipelines](https://tekton.dev/docs/pipelines/pipelines/) · [PipelineRuns](https://tekton.dev/docs/pipelines/pipelineruns/)
 
 1. Create a Tekton `Task` `lint-yaml` in namespace `ci` that has a parameter `path` and runs
    `yamllint -d relaxed $(params.path)` in the image `cytopia/yamllint` on a workspace `source`.
@@ -105,6 +119,8 @@ The Application `broken-app` does not sync. Find and fix **all** errors until it
 ---
 
 ## Task 2.8 – Argo Workflows ⏱ 10 min
+
+📖 Docs: [DAG](https://argo-workflows.readthedocs.io/en/latest/walk-through/dag/) · [WorkflowTemplates](https://argo-workflows.readthedocs.io/en/latest/workflow-templates/) · [CronWorkflows](https://argo-workflows.readthedocs.io/en/latest/cron-workflows/) · [Retries](https://argo-workflows.readthedocs.io/en/latest/retries/)
 
 1. In namespace `argo`, create a `WorkflowTemplate` `platform-dag` with a DAG:
    ```
@@ -124,6 +140,8 @@ The Application `broken-app` does not sync. Find and fix **all** errors until it
 
 ## Task 2.9 – Progressive delivery with Flagger (canary) ⏱ 12 min
 
+📖 Docs: [Istio canary tutorial](https://docs.flagger.app/tutorials/istio-progressive-delivery) · [How it works](https://docs.flagger.app/usage/how-it-works)
+
 Prerequisite: Istio + Prometheus + Flagger installed.
 1. Create the namespace `canary-demo` with Istio sidecar injection.
 2. Deploy `podinfo` (image `ghcr.io/stefanprodan/podinfo:6.7.0`, port 9898) **without** a service.
@@ -139,6 +157,8 @@ Prerequisite: Istio + Prometheus + Flagger installed.
 # More exercises
 
 ## Task 2.10 – Argo CD AppProject as a guardrail ⏱ 8 min
+
+📖 Docs: [Projects](https://argo-cd.readthedocs.io/en/stable/user-guide/projects/) · [Declarative setup](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/)
 
 Create an `AppProject` `team-a` in namespace `argocd`:
 - Allowed source: only `https://github.com/argoproj/argocd-example-apps`
@@ -158,6 +178,8 @@ created automatically):
 
 ## Task 2.11 – ApplicationSet with the Git directory generator ⏱ 7 min
 
+📖 Docs: [Git generator](https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/Generators-Git/) · [Application deletion](https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/Application-Deletion/)
+
 Create an `ApplicationSet` `example-dirs` that creates an Application for every directory in the
 `argocd-example-apps` repo ending in `-guestbook` – **except** `jsonnet-guestbook`.
 - Application name = directory name
@@ -170,6 +192,8 @@ ApplicationSet? (keyword `preserveResourcesOnDeletion`)
 
 ## Task 2.12 – Flux: staging variant with patches ⏱ 7 min
 
+📖 Docs: [Kustomization](https://fluxcd.io/flux/components/kustomize/kustomizations/)
+
 Create a second Flux `Kustomization` `podinfo-staging` (source: `GitRepository/podinfo` from 2.4,
 path `./kustomize`) that
 - deploys into the namespace `podinfo-staging`,
@@ -180,6 +204,8 @@ path `./kustomize`) that
 ---
 
 ## Task 2.13 – Tekton: `when` and `finally` ⏱ 8 min
+
+📖 Docs: [Pipelines (when, finally)](https://tekton.dev/docs/pipelines/pipelines/) · [PipelineRuns](https://tekton.dev/docs/pipelines/pipelineruns/)
 
 In namespace `ci`, create a pipeline `release-gate` with the parameter `environment`:
 1. Task `build` – prints "building".
@@ -194,6 +220,8 @@ Start a run with `environment=dev` and check that `approve-prod` is listed in
 ---
 
 ## Task 2.14 – Argo Workflows: results, conditions, exit handler ⏱ 8 min
+
+📖 Docs: [Scripts & results](https://argo-workflows.readthedocs.io/en/latest/walk-through/scripts-and-results/) · [Conditionals](https://argo-workflows.readthedocs.io/en/latest/walk-through/conditionals/) · [Exit handlers](https://argo-workflows.readthedocs.io/en/latest/walk-through/exit-handlers/)
 
 Create a `WorkflowTemplate` `coinflip` in namespace `argo`:
 1. Step `flip` (script template, image `alpine`) randomly prints `heads` or `tails`.
