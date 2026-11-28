@@ -16,6 +16,20 @@ done
 eq "prod without auto-sync" "" app guestbook-prod '{.spec.syncPolicy.automated}'
 eq "staging replicaCount=2" "2" app guestbook-staging '{.spec.source.helm.parameters[?(@.name=="replicaCount")].value}'
 
+section "2.3 Sync waves & hooks"
+check "Application waves: last sync succeeded" bash -c \
+  "[[ \$(kubectl -n argocd get application waves -o jsonpath='{.status.operationState.phase}') == Succeeded ]]"
+res() { k -n argocd get application waves -o json | jq -r --arg n "$1" \
+  '[.status.operationState.syncResult.resources[]? | select(.name == $n)] | first | "\(.hookType // "-") \(.syncPhase // "-")"'; }
+eq "db-migrate ran as PreSync hook" "PreSync PreSync" res db-migrate
+eq "smoke-test ran as PostSync hook" "PostSync PostSync" res smoke-test
+eq "ConfigMap app-config in wave -1" "-1" \
+  k -n waves get configmap app-config -o jsonpath='{.metadata.annotations.argocd\.argoproj\.io/sync-wave}'
+eq "Deployment web in wave 0" "0" \
+  k -n waves get deploy web -o jsonpath='{.metadata.annotations.argocd\.argoproj\.io/sync-wave}'
+check "db-migrate was deleted after success (HookSucceeded)" bash -c \
+  "! kubectl -n waves get job db-migrate >/dev/null 2>&1 && kubectl get ns waves >/dev/null 2>&1"
+
 section "2.4 / 2.5 Flux"
 eq "Kustomization podinfo Ready" "True" k -n flux-system get kustomization podinfo -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
 eq "HelmRelease podinfo-helm Ready" "True" k -n podinfo-helm get helmrelease podinfo-helm -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'

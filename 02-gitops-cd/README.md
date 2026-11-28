@@ -38,16 +38,25 @@ Applications: `guestbook-dev`, `guestbook-staging`, `guestbook-prod`.
 
 ---
 
-## Task 2.3 – Sync waves & hooks ⏱ 6 min
+## Task 2.3 – Sync waves & hooks ⏱ 8 min
 
-`solutions/2.3-waves/` contains manifests without annotations. Add annotations so that Argo CD
-syncs in this order:
-1. Namespace + ConfigMap (wave `-1`)
-2. A `Job` `db-migrate` as a **PreSync hook** that is deleted after it succeeds
-3. Deployment (wave `0`)
-4. A `Job` `smoke-test` as a **PostSync hook**
+`solutions/2.3-waves/manifests.yaml` contains a ConfigMap, a Deployment and two Jobs without
+annotations. Add Argo CD annotations so that a sync runs in this order:
+1. `Job` `db-migrate` as a **PreSync hook**, deleted after it succeeds
+2. `ConfigMap` `app-config` in wave `-1`
+3. `Deployment` `web` in wave `0`
+4. `Job` `smoke-test` as a **PostSync hook**
+
+Create the namespace `waves`, then deploy the manifests with an Argo CD Application `waves` into
+it (manual sync) and sync it once.
 
 Answer: What happens to the Deployment if `db-migrate` fails?
+
+> 💡 Argo CD only syncs from Git. Push your version to a branch of your own repo (e.g. `practice`)
+> and point the Application at it. The folder also contains `solution.yaml` with the same
+> resources – use `spec.source.directory.include: manifests.yaml` so only your file is applied.
+> `CreateNamespace=true` does not help here: Argo CD creates the namespace only after the PreSync
+> hooks, so `db-migrate` would fail with "namespace not found".
 
 ---
 
