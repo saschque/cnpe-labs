@@ -70,8 +70,24 @@ check "Role ci may sync the project's Applications" bash -c \
      | gsub(\" \"; \"\") | test(\"^p,proj:team-a:ci,applications,(sync|\\\\*),team-a/\\\\*,allow$\")' | grep -q true"
 eq "team-a-guestbook Synced" "Synced" app team-a-guestbook '{.status.sync.status}'
 eq "team-a-guestbook Healthy" "Healthy" app team-a-guestbook '{.status.health.status}'
-check "team-a-default rejected (InvalidSpecError)" bash -c \
-  "kubectl -n argocd get application team-a-default -o jsonpath='{.status.conditions[*].type}' | grep -q InvalidSpecError"
+if active; then   # test the guardrail ourselves with a throwaway Application (destination: default)
+  kubectl apply -f - >/dev/null 2>&1 <<'EOA'
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata: {name: verify-team-a-default, namespace: argocd}
+spec:
+  project: team-a
+  source: {repoURL: https://github.com/argoproj/argocd-example-apps, targetRevision: HEAD, path: guestbook}
+  destination: {server: https://kubernetes.default.svc, namespace: default}
+EOA
+  for i in $(seq 1 15); do
+    kubectl -n argocd get application verify-team-a-default -o jsonpath='{.status.conditions[*].type}' 2>/dev/null | grep -q InvalidSpecError && break
+    sleep 2
+  done
+  check "Project rejects destination namespace default (InvalidSpecError)" bash -c \
+    "kubectl -n argocd get application verify-team-a-default -o jsonpath='{.status.conditions[*].type}' | grep -q InvalidSpecError"
+  kubectl -n argocd delete application verify-team-a-default --wait=false >/dev/null 2>&1
+fi
 
 section "2.11 ApplicationSet Git directories"
 check "Application helm-guestbook created" k -n argocd get application helm-guestbook

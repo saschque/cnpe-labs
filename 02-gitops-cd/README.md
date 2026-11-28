@@ -172,7 +172,8 @@ Then create two Applications in project `team-a` (source path `guestbook`, auto-
 created automatically):
 - `team-a-guestbook` with destination namespace `team-a-guestbook` – must be `Synced`/`Healthy`
 - `team-a-default` with destination namespace `default` – must be rejected by the project
-  (check its conditions)
+  (the UI/`argocd` CLI refuses to create it; with `kubectl apply` it gets an `InvalidSpecError`
+  condition)
 
 ---
 
